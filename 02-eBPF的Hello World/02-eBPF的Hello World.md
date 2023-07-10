@@ -134,7 +134,7 @@ Linux的`uapi/linux/bpf.h`文件中定义了各种类型的BPF映射，并且内
 
 下一个示例（[GitHub 存储库](https://github.com/lizrice/learning-ebpf)中的 `Chapter2/hello-map.py`）显示了使用 Hash Table Map 的一些基本操作。它还演示了 BCC 提供的一些方便的抽象，使 Map 的使用变得非常容易。
 
-## Hash Table Map
+### Hash Table Map
 和本章前面的示例一样，这个 eBPF 程序将在 execve 系统调用的入口处附加到 kprobe。它将用键值对填充哈希表，其中键是用户 ID，值是在该用户 ID 下运行的进程调用 execve 次数的计数器。实际上，此示例将显示不同用户运行程序的次数。
 
 首先，让我们看一下 eBPF 程序本身的 C 代码：
@@ -223,7 +223,7 @@ ID 501: 5   ID 0: 2         sudo ls
 
 在这个例子中，我使用了哈希表来将数据从eBPF程序传递到用户空间。（我也可以使用数组类型的 Map，因为键是整数；而哈希表允许您使用任意类型作为键）当数据自然地以键值对的形式存在时，哈希表非常方便，但用户空间的代码必须定期轮询表来获取数据。Linux 内核已经支持了 perf 子系统，用于从内核向用户空间发送数据，而且 eBPF 还包括对perf缓冲区和其后继者 BPF 环形缓冲区（Ring Buffer Maps）的支持。让我们来看一下。
 
-## Perf 和 环形缓冲区 Map（Ring Buffer Maps）
+### Perf 和 环形缓冲区 Map（Ring Buffer Maps）
 
 在本节中，我将描述一个稍微复杂一些的“Hello World”版本，它使用BCC的`BPF_PERF_OUTPUT`功能，允许您将数据以您选择的结构写入perf环形缓冲区映射中。
 
@@ -322,7 +322,7 @@ $ sudo ./hello-buffer.py
 
 在本书中，您将看到更多的示例，其中使用eBPF辅助函数被用来收集其他上下文数据，以及示例中的eBPF程序更改上下文数据甚至完全阻止事件发生。
 
-## 函数调用
+### 函数调用
 
 您已经看到eBPF程序可以调用内核提供的辅助函数，但是如果您想将编写的代码拆分为函数呢？通常，在软件开发中，将常见代码提取到一个函数中，并从多个地方调用该函数，被认为是良好的实践，而不是重复相同的代码行。但在早期，eBPF程序不被允许调用除辅助函数之外的函数。为了解决这个问题，程序员将编译器指示为“总是内联”它们的函数，例如：
 
@@ -342,7 +342,7 @@ static __always_inline void my_function(void *ctx, int val)
 
 在eBPF中还有一种将复杂功能分解成较小部分的机制：尾部调用（ tail calls）。
 
-## 尾部调用（Tail Calls）
+### 尾部调用（Tail Calls）
 
 正如在[ebpf.io](https://oreil.ly/Loyuz)上描述的那样，“尾部调用可以调用并执行另一个eBPF程序，并替换执行上下文，类似于`execve()`系统调用对常规进程的操作”。换句话说，尾部调用完成后，执行不会返回给调用者。
 
