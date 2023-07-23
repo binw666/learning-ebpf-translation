@@ -1,34 +1,34 @@
 # 第四章 bpf()系统调用
 
-正如您在第1章中看到的，当用户空间应用程序希望内核代表它们执行某些操作时，它们会使用系统调用API发出请求。因此，如果用户空间应用程序想要将eBPF程序加载到内核中，必然涉及一些系统调用。实际上，这个系统调用是bpf()，在本章中我将向您展示如何使用它来加载和操作eBPF程序和Map。
+正如您在第 1 章中看到的，当用户空间应用程序希望内核代表它们执行某些操作时，它们会使用系统调用 API 发出请求。因此，如果用户空间应用程序想要将 eBPF 程序加载到内核中，必然涉及一些系统调用。实际上，这个系统调用是 bpf()，在本章中我将向您展示如何使用它来加载和操作 eBPF 程序和 Map。
 
-值得注意的是，运行在内核中的eBPF代码并不使用系统调用来访问 Map。系统调用接口仅由用户空间应用程序使用。相反，eBPF程序使用辅助函数来读取和写入 Map；您在前两章中已经看到了一些例子。
+值得注意的是，运行在内核中的 eBPF 代码并不使用系统调用来访问 Map。系统调用接口仅由用户空间应用程序使用。相反，eBPF 程序使用辅助函数来读取和写入 Map；您在前两章中已经看到了一些例子。
 
-如果您继续编写自己的eBPF程序，很可能您不会直接调用这些bpf()系统调用。在本书的后面部分，我会介绍一些库，它们提供了更高级的抽象，使编程更加容易。也就是说，这些抽象通常与本章中所见的底层系统调用命令非常相似。无论您使用哪个库，您都需要了解底层操作，比如加载程序、创建和访问 Map 等，这些内容都将在本章中介绍。
+如果您继续编写自己的 eBPF 程序，很可能您不会直接调用这些 bpf()系统调用。在本书的后面部分，我会介绍一些库，它们提供了更高级的抽象，使编程更加容易。也就是说，这些抽象通常与本章中所见的底层系统调用命令非常相似。无论您使用哪个库，您都需要了解底层操作，比如加载程序、创建和访问 Map 等，这些内容都将在本章中介绍。
 
-在展示bpf()系统调用的示例之前，让我们先看一下[bpf()的手册上的说明](https://man7.org/linux/man-pages/man2/bpf.2.html)。手册中提到，bpf()用于“对扩展BPF Map或程序执行命令”。它还告诉我们，bpf()的函数签名如下所示：
+在展示 bpf()系统调用的示例之前，让我们先看一下[bpf()的手册上的说明](https://man7.org/linux/man-pages/man2/bpf.2.html)。手册中提到，bpf()用于“对扩展 BPF Map 或程序执行命令”。它还告诉我们，bpf()的函数签名如下所示：
 
 ```c
 int bpf(int cmd, union bpf_attr *attr, unsigned int size);
 ```
 
-**bpf()** 函数的第一个参数 **cmd** 指定要执行的命令。**bpf()**系统调用不仅仅执行一个操作，它有很多不同的命令可以用来操作eBPF程序和 Map。图4-1概述了用户空间代码可能使用的一些常见命令，包括加载eBPF程序、创建 Map、将程序附加到事件以及访问 Map 中的键值对。
+**bpf()** 函数的第一个参数 **cmd** 指定要执行的命令。**bpf()**系统调用不仅仅执行一个操作，它有很多不同的命令可以用来操作 eBPF 程序和 Map。图 4-1 概述了用户空间代码可能使用的一些常见命令，包括加载 eBPF 程序、创建 Map、将程序附加到事件以及访问 Map 中的键值对。
 
 ![Alt text](figure-4-1.png)
 
-*图 4-1. 用户空间程序使用系统调用与内核中的eBPF程序和映射进行交互*
+_图 4-1. 用户空间程序使用系统调用与内核中的 eBPF 程序和映射进行交互_
 
 **bpf()** 系统调用的 **attr** 参数保存指定命令参数所需的任何数据，**size** 表明 **attr** 中有多少字节数据。
 
-在第1章中，您已经遇到了**strace**，我在那里使用它展示了用户空间代码如何通过系统调用API发出许多请求。在本章中，我将使用它来演示如何使用 **bpf()** 系统调用。**strace** 的输出包括每个系统调用的参数，但为了避免本章的示例输出过于混乱，我将省略 **attr** 参数中的大部分细节，除非它们特别有趣。
+在第 1 章中，您已经遇到了**strace**，我在那里使用它展示了用户空间代码如何通过系统调用 API 发出许多请求。在本章中，我将使用它来演示如何使用 **bpf()** 系统调用。**strace** 的输出包括每个系统调用的参数，但为了避免本章的示例输出过于混乱，我将省略 **attr** 参数中的大部分细节，除非它们特别有趣。
 
 > 提示
-> 
-> 您可以在 [github.com/lizrice/learning-ebpf](https://github.com/lizrice/learning-ebpf) 上找到该代码以及设置运行该代码的环境的说明。本章的代码位于chapter4目录中。
+>
+> 您可以在 [github.com/lizrice/learning-ebpf](https://github.com/lizrice/learning-ebpf) 上找到该代码以及设置运行该代码的环境的说明。本章的代码位于 chapter4 目录中。
 
-在这个例子中，我将使用一个名为 *hello-buffer-config.py* 的 BCC 程序，它在第2章中的示例基础上进行了扩展。与 *hello-buffer.py* 示例一样，该程序在每次运行时会向perf缓冲区发送一条消息，将内核关于 **execve()** 系统调用事件的信息传递给用户空间。这个新版本的特点是可以为每个用户ID配置不同的消息。
+在这个例子中，我将使用一个名为 _hello-buffer-config.py_ 的 BCC 程序，它在第 2 章中的示例基础上进行了扩展。与 _hello-buffer.py_ 示例一样，该程序在每次运行时会向 perf 缓冲区发送一条消息，将内核关于 **execve()** 系统调用事件的信息传递给用户空间。这个新版本的特点是可以为每个用户 ID 配置不同的消息。
 
-下面是eBPF源代码：
+下面是 eBPF 源代码：
 
 ```c
 // 该行表示有一个结构体定义 user_msg_t，用于保存 12 个字符的消息。
@@ -38,9 +38,9 @@ struct user_msg_t {
 // BCC 宏 BPF_HASH 用于定义一个名为 config 的哈希Map。它将保存 user_msg_t 类型的值，由 u32 类型的键索引，这刚好是用户 ID 的大小。 （如果您不指定键和值的类型，则 BCC 默认为 u64。）
 BPF_HASH(config, u32, struct user_msg_t);
 // perf 缓冲区输出的定义方式与第 2 章完全相同。您可以向缓冲区提交任意数据，因此无需在此处指定任何数据类型...
-BPF_PERF_OUTPUT(output); 
+BPF_PERF_OUTPUT(output);
 // ...尽管实际上，在这个示例中，程序总是提交一个data_t结构。这与第2章的示例相同。
-struct data_t {     
+struct data_t {
    int pid;
    int uid;
    char command[16];
@@ -48,7 +48,7 @@ struct data_t {
 };
 // eBPF程序的其余部分与您之前看到的hello()版本没有任何变化。
 int hello(void *ctx) {
-   struct data_t data = {}; 
+   struct data_t data = {};
    struct user_msg_t *p;
    char message[12] = "Hello World";
 
@@ -59,12 +59,12 @@ int hello(void *ctx) {
    // 唯一的区别是，使用辅助函数来获取用户 ID 后，代码会在 config 哈希 Map 中查找以该用户 ID 作为键的条目。如果存在匹配的条目，则该值包含一条将使用的消息，而不是默认的“Hello World”。
    p = config.lookup(&data.uid);
    if (p != 0) {
-      bpf_probe_read_kernel(&data.message, sizeof(data.message), p->message);       
+      bpf_probe_read_kernel(&data.message, sizeof(data.message), p->message);
    } else {
-      bpf_probe_read_kernel(&data.message, sizeof(data.message), message); 
+      bpf_probe_read_kernel(&data.message, sizeof(data.message), message);
    }
 
-   output.perf_submit(ctx, &data, sizeof(data)); 
+   output.perf_submit(ctx, &data, sizeof(data));
 
    return 0;
 }
@@ -83,8 +83,8 @@ b["config"][ct.c_int(501)] = ct.create_string_buffer(b"Hi user 501!")
 
 ```bash
 Terminal 1 									Terminal 2
-$ ./hello-buffer-config.py 
-37926 501 bash Hi user 501! 				ls 
+$ ./hello-buffer-config.py
+37926 501 bash Hi user 501! 				ls
 37927 501 bash Hi user 501! 				sudo ls
 37929 0 sudo Hey root!
 37931 501 bash Hi user 501! 				sudo -u daemon ls
@@ -135,7 +135,7 @@ bpf(BPF_MAP_CREATE, {map_type=BPF_MAP_TYPE_PERF_EVENT_ARRAY, , key_size=4,
 value_size=4, max_entries=4, ... map_name="output", ...}, 128) = 4
 ```
 
-您可能可以从命令名称 **BPF_MAP_CREATE** 猜测该调用创建了一个 eBPF Map。可以看到这个 map 的类型是**PERF_EVENT_ARRAY**，它被定义为 **output** 。此 perf event map 中的键和值的大小为 4 个字节。由字段 **max_entries** 定义，该 map 中可以保存四个键值对；我将在本章后面解释为什么这个 map 中有四个条目。返回值 **4** 是用户空间代码访问 **output** map的文件描述符。
+您可能可以从命令名称 **BPF_MAP_CREATE** 猜测该调用创建了一个 eBPF Map。可以看到这个 map 的类型是**PERF_EVENT_ARRAY**，它被定义为 **output** 。此 perf event map 中的键和值的大小为 4 个字节。由字段 **max_entries** 定义，该 map 中可以保存四个键值对；我将在本章后面解释为什么这个 map 中有四个条目。返回值 **4** 是用户空间代码访问 **output** map 的文件描述符。
 
 输出中的下一个 **bpf()** 系统调用将创建 **config** map：
 
@@ -170,9 +170,9 @@ expected_attach_type=BPF_CGROUP_INET_INGRESS, prog_btf_fd=3,...}, 128) = 6
 - **BPF_CGROUP_INET_INGRESS** 的 **expected_attach_type**（预期附加类型）可能看起来令人惊讶，因为这听起来像是与入口网络流量有关，但您知道这个 eBPF 程序将附加到 kprobe。事实上，expected_attach_type 字段仅用于某些程序类型，而 BPF_PROG_TYPE_KPROBE 不是其中之一。 BPF_CGROUP_INET_INGRESS 恰好是 BPF 附件类型列表中的第一个（这些在 [linux/bpf.h](https://elixir.bootlin.com/linux/latest/source/include/uapi/linux/bpf.h#L958) 的 bpf_attach_type 枚举类型中定义），因此它的值为 0。
 - **prog_btf_fd** 字段告诉内核先前加载的 BTF 数据中的哪个 blob 与此程序一起使用。这里的值 **3** 对应于您从 **BPF_BTF_LOAD** 系统调用返回的文件描述符（它与用于 **config** map 的 BTF 数据块相同）。
 
-如果程序验证失败（我将在第 6 章中讨论），此系统调用将返回负值，但在这里您可以看到它返回文件描述符 **6**。 回顾一下，此时文件描述符的含义如表4-1所示。
+如果程序验证失败（我将在第 6 章中讨论），此系统调用将返回负值，但在这里您可以看到它返回文件描述符 **6**。 回顾一下，此时文件描述符的含义如表 4-1 所示。
 
-*表 4-1. 加载程序后运行 hello-buffer-config.py 时的文件描述符*
+_表 4-1. 加载程序后运行 hello-buffer-config.py 时的文件描述符_
 
 | 文件描述符 | 代表含义                   |
 | ---------- | -------------------------- |
@@ -258,7 +258,7 @@ ip link set dev eth0 xdp obj hello.bpf.o sec xdp
 
 ```bash
 $ bpftool prog list
-… 
+…
 1255: xdp name hello tag 9d0e949f89f1a82c gpl
         loaded_at 2022-11-01T19:21:14+0000 uid 0
         xlated 48B jited 108B memlock 4096B map_ids 612
@@ -282,7 +282,7 @@ map 还可以固定到文件系统，用户空间程序可以通过 map 的路�
 
 BPF 链接在 eBPF 程序和它所附加的事件之间提供了一个抽象层。 BPF 链接本身可以固定到文件系统，这会创建对程序的额外引用。这意味着将程序加载到内核中的用户空间进程可以终止，从而使程序保持加载状态。用户空间加载程序的文件描述符被释放，减少了对该程序的引用计数，但由于 BPF 链接，引用计数将不为零。
 
-如果您按照本章末尾的练习进行操作，您将有机会看到实际的 BPF 链接。现在，让我们回到 *hello-buffer-config.py* 使用的 **bpf()** 系统调用序列。
+如果您按照本章末尾的练习进行操作，您将有机会看到实际的 BPF 链接。现在，让我们回到 _hello-buffer-config.py_ 使用的 **bpf()** 系统调用序列。
 
 ## eBPF 涉及的其他系统调用
 
@@ -317,7 +317,7 @@ $ strace -e bpf,perf_event_open,ioctl,ppoll ./hello-buffer-config.py
 
 ### 附加到 Kprobe 事件
 
-您已经看到，一旦 eBPF 程序 *hello* 加载到内核中，文件描述符 **6** 就被分配来表示它。要将 eBPF 程序附加到事件，您还需要一个代表该特定事件的文件描述符。 **strace** 输出中的以下行显示了 **execve()** **kprobe** 的文件描述符的创建：
+您已经看到，一旦 eBPF 程序 _hello_ 加载到内核中，文件描述符 **6** 就被分配来表示它。要将 eBPF 程序附加到事件，您还需要一个代表该特定事件的文件描述符。 **strace** 输出中的以下行显示了 **execve()** **kprobe** 的文件描述符的创建：
 
 ```bash
 perf_event_open({type=0x6 /* PERF_TYPE_??? */, ...},...) = 7
@@ -325,9 +325,9 @@ perf_event_open({type=0x6 /* PERF_TYPE_??? */, ...},...) = 7
 
 根据 [perf_event_open() 系统调用的手册页](https://man7.org/linux/man-pages/man2/perf_event_open.2.html)，它“创建一个允许测量性能信息的文件描述符”。您可以从输出中看到 strace 不知道如何解释值为 6 的类型参数，但如果您进一步检查该联机帮助页，它描述了 Linux 如何支持性能测量单元（Performance Measurement Unit）的动态类型：
 
-> ...在 */sys/bus/event_source/devices* 下，每个 PMU 实例都有一个子目录。每个子目录下都有一个 type 文件，其内容为可用于 type 字段的整数。
+> ...在 _/sys/bus/event_source/devices_ 下，每个 PMU 实例都有一个子目录。每个子目录下都有一个 type 文件，其内容为可用于 type 字段的整数。
 
-果然，如果您查看该目录，您会发现一个 *kprobe/type* 文件：
+果然，如果您查看该目录，您会发现一个 _kprobe/type_ 文件：
 
 ```bash
 $ cat /sys/bus/event_source/devices/kprobe/type
@@ -338,7 +338,7 @@ $ cat /sys/bus/event_source/devices/kprobe/type
 
 不幸的是，strace 不会输出最终表明 kprobe 附加到 **execve()** 系统调用的详细信息，但我希望这里有足够的证据让您相信这就是这里返回的文件描述符所代表的内容。
 
-**perf_event_open()** 的返回码是 7，这代表 kprobe 的 perf 事件的文件描述符，并且您知道文件描述符 6 代表 *hello* eBPF 程序。 **perf_event_open()** 的联机帮助页还解释了如何使用 **ioctl()** 在两者之间创建连接：
+**perf_event_open()** 的返回码是 7，这代表 kprobe 的 perf 事件的文件描述符，并且您知道文件描述符 6 代表 _hello_ eBPF 程序。 **perf_event_open()** 的联机帮助页还解释了如何使用 **ioctl()** 在两者之间创建连接：
 
 > **PERF_EVENT_IOC_SET_BPF** [...] 允许将 Berkeley Packet Filter (BPF) 程序附加到现有的 kprobe 跟踪点事件。参数是由先前的 **bpf(2)** 系统调用创建的 BPF 程序文件描述符。
 
@@ -358,7 +358,7 @@ ioctl(7, PERF_EVENT_IOC_ENABLE, 0) = 0
 
 ### 设置和读取 Perf 事件
 
-我已经提到过，我看到四个与 **output** perf 缓冲区相关的 **bpf(BPF_MAP_UPDATE_ELEM)** 调用。通过跟踪其他系统调用，**strace** 输出显示四个序列，如下所示：（译者注：下面的输出持续了四次，为了节省篇幅，使用X代表0、1、2、3）
+我已经提到过，我看到四个与 **output** perf 缓冲区相关的 **bpf(BPF_MAP_UPDATE_ELEM)** 调用。通过跟踪其他系统调用，**strace** 输出显示四个序列，如下所示：（译者注：下面的输出持续了四次，为了节省篇幅，使用 X 代表 0、1、2、3）
 
 ```bash
 perf_event_open({type=PERF_TYPE_SOFTWARE, size=0 /* PERF_ATTR_SIZE_??? */,
@@ -369,13 +369,13 @@ bpf(BPF_MAP_UPDATE_ELEM, {map_fd=4, key=0xffffa7842490, value=0xffffa7a2b410, fl
 
 在上面的输出中，我使用 **X** 的位置表示值 0、1、2 和 3 。参考 **perf_event_open()** 系统调用的联机帮助页，您会看到这是 cpu，而它前面的字段是 pid 或进程 ID。从联机帮助页：
 
-> pid == -1 并且 cpu >= 0 
+> pid == -1 并且 cpu >= 0
 >
-> 这测量指定CPU上的所有进程/线程。
+> 这测量指定 CPU 上的所有进程/线程。
 
 该序列发生四次的原因对应于我的笔记本电脑中有四个 CPU 核心。最后，这解释了为什么“**output**” perf 缓冲区 map 中有四个条目：每个 CPU 核心都有一个条目。它还解释了映射类型名称 **BPF_MAP_TYPE_PERF_EVENT_ARRAY** 的“array”部分，因为 map 不只代表一个 perf 环形缓冲区，而是代表一组缓冲区，每个核心一个。
 
-如果您编写 eBPF 程序，则无需担心诸如处理核心数量之类的细节，因为第 10 章中讨论的任何 eBPF 库都会为您处理这些问题，但是我认为当您在这个程序中使用strace时，您会看到系统调用的一个有趣的方面。
+如果您编写 eBPF 程序，则无需担心诸如处理核心数量之类的细节，因为第 10 章中讨论的任何 eBPF 库都会为您处理这些问题，但是我认为当您在这个程序中使用 strace 时，您会看到系统调用的一个有趣的方面。
 
 **perf_event_open()** 调用每个都返回一个文件描述符，我将其表示为 **Y**；它们的值为 8、9、10 和 11。**ioctl()** 系统调用为每个文件描述符启用 perf 输出。 **BPF_MAP_UPDATE_ELEM** **bpf()** 系统调用将 map 条目设置为指向每个 CPU 核心的 perf 环形缓冲区，以指示它可以在哪里提交数据。
 
@@ -386,7 +386,7 @@ ppoll([{fd=8, events=POLLIN}, {fd=9, events=POLLIN}, {fd=10, events=POLLIN},
 {fd=11, events=POLLIN}], 4, NULL, NULL, 0) = 1 ([{fd=8, revents=POLLIN}])
 ```
 
-如果您尝试自己运行示例程序，您将会看到，这些 **ppoll()** 调用会阻塞，直到从文件描述符之一读取数据为止。直到有东西触发execve()，导致eBPF程序写入用户空间通过ppoll()调用获取的数据，您才会看到返回代码写入屏幕。
+如果您尝试自己运行示例程序，您将会看到，这些 **ppoll()** 调用会阻塞，直到从文件描述符之一读取数据为止。直到有东西触发 execve()，导致 eBPF 程序写入用户空间通过 ppoll()调用获取的数据，您才会看到返回代码写入屏幕。
 
 在第 2 章中我提到，如果您的内核版本为 5.8 或更高版本，则 BPF 环形缓冲区（ring buffers）现在优于 perf 缓冲区。（提醒一下，有关差异的更多信息，请阅读 Andrii Nakryiko 的[“BPF 环形缓冲区”](https://nakryiko.com/posts/bpf-ringbuf/)博客文章。）让我们看一下使用环形缓冲区的同一示例代码的修改版本。
 
@@ -394,9 +394,9 @@ ppoll([{fd=8, events=POLLIN}, {fd=9, events=POLLIN}, {fd=10, events=POLLIN},
 
 正如[内核文档](https://www.kernel.org/doc/html/latest/bpf/ringbuf.html)中所讨论的，环形缓冲区优于 perf 缓冲区，部分原因是出于性能原因，但也是为了确保保留数据的顺序，即使数据是由不同的 CPU 核心提交的。只有一个缓冲区，由所有内核共享。
 
-将 *hello-buffer-config.py* 转换为使用环形缓冲区不需要太多更改。在随附的 GitHub 存储库中，您会发现此示例为 *chapter4/hello-ring-buffer-config.py*。表 4-2 显示了差异。
+将 _hello-buffer-config.py_ 转换为使用环形缓冲区不需要太多更改。在随附的 GitHub 存储库中，您会发现此示例为 _chapter4/hello-ring-buffer-config.py_。表 4-2 显示了差异。
 
-*表 4-2. 使用 perf 缓冲区和环形缓冲区的示例 BCC 代码之间的差异*
+_表 4-2. 使用 perf 缓冲区和环形缓冲区的示例 BCC 代码之间的差异_
 
 | hello-buffer-config.py                        | hello-ring-buffer-config.py                    |
 | --------------------------------------------- | ---------------------------------------------- |
@@ -410,7 +410,7 @@ ppoll([{fd=8, events=POLLIN}, {fd=9, events=POLLIN}, {fd=10, events=POLLIN},
 创建 **output** 环形缓冲区 map 的 **bpf()** 系统调用如下所示：
 
 ```bash
-bpf(BPF_MAP_CREATE, {map_type=BPF_MAP_TYPE_RINGBUF, key_size=0, value_size=0, 
+bpf(BPF_MAP_CREATE, {map_type=BPF_MAP_TYPE_RINGBUF, key_size=0, value_size=0,
 max_entries=4096, ... map_name="output", ...}, 128) = 4
 ```
 
@@ -418,7 +418,7 @@ strace 输出的主要区别在于，没有您在设置 perf 缓冲区时观察�
 
 在撰写本文时，BCC 使用我之前为 perf 缓冲区展示的 **ppoll** 机制来展示 perf 缓冲区的数据，现在它使用较新的 **epoll** 机制来等待来自环形缓冲区的数据。让我们以此为契机来了解 **ppoll** 和 **epoll** 之间的区别。
 
-在 perf buffer 示例中，我展示了 *hello-buffer-config.py* 生成 **ppoll()** 系统调用，如下所示：
+在 perf buffer 示例中，我展示了 _hello-buffer-config.py_ 生成 **ppoll()** 系统调用，如下所示：
 
 ```bash
 ppoll([{fd=8, events=POLLIN}, {fd=9, events=POLLIN}, {fd=10, events=POLLIN},
@@ -427,7 +427,7 @@ ppoll([{fd=8, events=POLLIN}, {fd=9, events=POLLIN}, {fd=10, events=POLLIN},
 
 请注意，这传递了用户空间进程想要从中检索数据的文件描述符集 8、9、10 和 11。每次此 poll 事件返回数据时，都必须再次调用 ppoll() 来重新设置同一组文件描述符。使用 epoll 时，文件描述符集在内核对象中进行管理。
 
-当 *hello-ring-buffer-config.py* 设置对 **output** 环形缓冲区的访问时，您可以从下面一系列与 **epoll** 相关的系统调用中看到这一点。
+当 _hello-ring-buffer-config.py_ 设置对 **output** 环形缓冲区的访问时，您可以从下面一系列与 **epoll** 相关的系统调用中看到这一点。
 
 首先，用户空间程序请求在内核中创建一个新的 **epoll** 实例：
 
@@ -496,7 +496,7 @@ bpf(BPF_MAP_GET_NEXT_ID, {start_id=133,...}, 12) = -1 ENOENT (No such file or di
 
 ```bash
 # 首先，应用程序需要在 map 中找到一个有效的键。它通过bpf()系统调用的 BPF_MAP_GET_NEXT_KEY 来实现。key 参数是一个指向 key 的指针，系统调用将返回这个 key 之后的下一个有效 key。通过传递一个NULL指针，应用程序请求映射中的第一个有效键。内核将把键写入next_key指针指定的位置。
-bpf(BPF_MAP_GET_NEXT_KEY, {map_fd=3, key=NULL, 
+bpf(BPF_MAP_GET_NEXT_KEY, {map_fd=3, key=NULL,
 next_key=0xaaaaf7a63960}, 24) = 0
 # 给定一个键，应用程序请求相关的值，该值被写入由值(value)指定的内存位置。
 bpf(BPF_MAP_LOOKUP_ELEM, {map_fd=3, key=0xaaaaf7a63960,
@@ -526,7 +526,7 @@ next_key=0xaaaaf7a63960}, 24) = -1 ENOENT (No such file or directory)
 +++ exited with 0 +++
 ```
 
-请注意，此处 **bpftool** 已被分配文件描述符 **3** 对应于 **config** map。这与 *hello-buffer-config.py* 使用文件描述符 **4** 引用的 map 相同。正如我已经提到的，文件描述符是特定于进程的。
+请注意，此处 **bpftool** 已被分配文件描述符 **3** 对应于 **config** map。这与 _hello-buffer-config.py_ 使用文件描述符 **4** 引用的 map 相同。正如我已经提到的，文件描述符是特定于进程的。
 
 对 bpftool 行为方式的分析显示了用户空间程序如何迭代可用的 map 和存储在 map 中的键值对。
 
@@ -550,13 +550,14 @@ next_key=0xaaaaf7a63960}, 24) = -1 ENOENT (No such file or directory)
 
 如果您想进一步探索 bpf() 系统调用，可以尝试以下一些操作：
 
-1. 确认 **BPF_PROG_LOAD** 系统调用中的 **insn_cnt** 字段对应于使用 **bpftool** 转储该程序的已翻译的eBPF字节码时输出的指令数量。 （这在 [bpf() 系统调用的手册页](https://man7.org/linux/man-pages/man2/bpf.2.html)上有记录）
+1. 确认 **BPF_PROG_LOAD** 系统调用中的 **insn_cnt** 字段对应于使用 **bpftool** 转储该程序的已翻译的 eBPF 字节码时输出的指令数量。 （这在 [bpf() 系统调用的手册页](https://man7.org/linux/man-pages/man2/bpf.2.html)上有记录）
 
 2. 运行示例程序的两个实例，以便有两个名为 **config** 的 map。如果运行 **bpftool map dump name config**，输出将包括有关两个不同 map 及其内容的信息。在 strace 下运行它，并通过系统调用输出跟踪不同文件描述符的使用。您能看到它在哪里检索有关 map 的信息以及在哪里检索存储在其中的键值对吗？
 
 3. 在示例程序之一运行时，使用 **bpftool map update** 修改 **config** map。使用 **sudo -u username** 检查 eBPF 程序是否采取了这些配置更改。
 
-4. 当 *hello-buffer-config.py* 运行时，使用 **bpftool** 将程序固定到 BPF 文件系统，如下所示：
+4. 当 _hello-buffer-config.py_ 运行时，使用 **bpftool** 将程序固定到 BPF 文件系统，如下所示：
+
    ```bash
    bpftool prog pin name hello /sys/fs/bpf/hi
    ```
@@ -583,7 +584,7 @@ next_key=0xaaaaf7a63960}, 24) = -1 ENOENT (No such file or directory)
            pids opensnoop(17711)
    ```
 
-   确认程序ID（在我这里的输出示例中为1849和1851）与加载的eBPF程序列表输出一致：
+   确认程序 ID（在我这里的输出示例中为 1849 和 1851）与加载的 eBPF 程序列表输出一致：
 
    ```bash
    $ bpftool prog list
@@ -603,5 +604,4 @@ next_key=0xaaaaf7a63960}, 24) = -1 ENOENT (No such file or directory)
    ```
 
 7. 当 opensnoop 运行时，尝试使用 **bpftool link pin id 116 /sys/fs/bpf/mylink** 固定这些链接之一（使用您在 **bpftool link list** 中看到的输出的链接 ID 之一）。您会发现，即使在终止 opensnoop 之后，链接和相应的程序仍然加载在内核中。
-8. 如果您跳到第 5 章的示例代码，您会发现使用 *libbpf* 库编写的 *hello-buffer-config.py* 版本。这个库会自动为加载到内核中的程序设置一个BPF链接。使用 strace 检查它发出的 bpf() 系统调用，并查看 **bpf(BPF_LINK_CREATE)** 系统调用。
-
+8. 如果您跳到第 5 章的示例代码，您会发现使用 _libbpf_ 库编写的 _hello-buffer-config.py_ 版本。这个库会自动为加载到内核中的程序设置一个 BPF 链接。使用 strace 检查它发出的 bpf() 系统调用，并查看 **bpf(BPF_LINK_CREATE)** 系统调用。

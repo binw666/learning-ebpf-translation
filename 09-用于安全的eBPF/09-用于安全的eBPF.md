@@ -1,14 +1,14 @@
-# 第九章 用于安全的eBPF
+# 第九章 用于安全的 eBPF
 
 您已经看到 eBPF 如何用于观察整个系统的事件，并将这些事件的相关信息报告给用户空间工具。在本章中，您将了解如何在事件检测概念的基础上创建基于 eBPF 的安全工具，以检测甚至阻止恶意活动。首先，我将帮助您理解安全与其他类型的可观察性的不同之处。
 
 > 提示
 >
-> 本章的示例代码位于 [GitHub 代码库](http://github.com/lizrice/learning-ebpf)的 *chapter9* 目录中。
+> 本章的示例代码位于 [GitHub 代码库](http://github.com/lizrice/learning-ebpf)的 _chapter9_ 目录中。
 
 ## 安全可观察性需要策略和背景
 
-安全工具与报告事件的可观察性工具的区别在于，安全工具需要能够区分正常情况下的预期事件和可能正在发生恶意活动的事件。例如，假设有一个应用程序在正常处理过程中会向本地文件写入数据。假设该应用程序将写入 */home/\<username>/\<filename>*，那么从安全角度来看，您不会对这种活动感兴趣。但是，如果应用程序写入 Linux 中的许多敏感文件位置之一，您会希望得到通知。例如，它不太可能需要修改存储在 */etc/passwd* 中的密码信息。
+安全工具与报告事件的可观察性工具的区别在于，安全工具需要能够区分正常情况下的预期事件和可能正在发生恶意活动的事件。例如，假设有一个应用程序在正常处理过程中会向本地文件写入数据。假设该应用程序将写入 _/home/\<username>/\<filename>_，那么从安全角度来看，您不会对这种活动感兴趣。但是，如果应用程序写入 Linux 中的许多敏感文件位置之一，您会希望得到通知。例如，它不太可能需要修改存储在 _/etc/passwd_ 中的密码信息。
 
 策略不仅要考虑系统正常运行时的正常行为，还要考虑预期的错误路径行为。例如，如果物理磁盘满了，应用程序可能会开始发送网络信息，提醒用户注意这种情况。这些网络信息不应被视为安全事件——尽管它们不寻常，但并不可疑。考虑到错误路径可能会给创建有效策略带来挑战，我们将在本章稍后讨论这一挑战。
 
@@ -18,7 +18,7 @@
 
 ![](./figure-9-1.jpg)
 
-*图 9-1. 为实现安全可观察性，在检测到策略外事件时还需要上下文信息*
+_图 9-1. 为实现安全可观察性，在检测到策略外事件时还需要上下文信息_
 
 让我们来探讨一下 eBPF 程序用于检测和执行安全事件的一些方法。如您所知，eBPF 程序可以附加到各种事件上，而多年来常用于安全的一组事件是系统调用。我们将从系统调用开始讨论，但正如您所看到的，系统调用可能并不是使用 eBPF 实现安全工具的最有效方法。本章稍后我们将介绍一些更新、更复杂的方法。
 
@@ -55,7 +55,7 @@ seccomp 是 "安全计算（SECure COMPuting）"的缩写。在其原始或 "严
 
 自动化是未来的方向：其想法是使用一种工具来记录应用程序的系统调用集。在早期，seccomp 配置文件通常使用 `strace` 来收集应用程序调用的系统调用集。（例如，请参阅 Jess Frazelle 的这篇文章，他为 Docker 开发了默认的 seccomp 配置文件：[“如何使用新的 Docker Seccomp 配置文件”](https://blog.jessfraz.com/post/how-to-use-new-docker-seccomp-profiles)。）在云原生时代，这并不是一个好的解决方案，因为没有简单的方法将 strace 指向特定的容器或 Kubernetes pod。如果能以 JSON 格式（Kubernetes 和兼容 OCI 的容器运行时可以将其作为输入）生成配置文件，而不仅仅是系统调用列表，那将会更有帮助。有几款工具可以做到这一点，它们使用 eBPF 收集所有被调用系统调用的信息：
 
-- [Inspektor Gadget](https://www.inspektor-gadget.io/) 包含一个 seccomp  分析器，可让您为 Kubernetes pod 中的容器生成自定义 seccomp 配置文件。（Inspektor Gadget 的 seccomp  分析器的文档相当枯燥，但 [Jose Blanquicet 的视频概述更容易理解](https://www.youtube.com/watch?v=K-mEyso42Ag)。）
+- [Inspektor Gadget](https://www.inspektor-gadget.io/) 包含一个 seccomp 分析器，可让您为 Kubernetes pod 中的容器生成自定义 seccomp 配置文件。（Inspektor Gadget 的 seccomp 分析器的文档相当枯燥，但 [Jose Blanquicet 的视频概述更容易理解](https://www.youtube.com/watch?v=K-mEyso42Ag)。）
 - Red Hat 以 [OCI 运行时钩子（OCI runtime hook）](https://github.com/containers/oci-seccomp-bpf-hook)的形式创建了 seccomp 分析器。
 
 使用这些分析器时，您需要运行应用程序一定的任意时间，以生成包含其可能合法调用的全部系统调用列表的配置文件。如本章前文所述，该列表需要包含错误路径。如果您的应用程序在错误条件下无法正常运行，因为它需要调用的系统调用被阻止了，这可能会导致更大的问题。由于 seccomp 配置文件所处理的抽象级别比大多数开发人员所熟悉的要低，因此很难手动审查它们是否涵盖了所有正确的情况。
@@ -90,7 +90,7 @@ if err := m.AttachTracepoint("raw_syscalls:sys_enter", enterTrace); err != nil
 
 ```c
 BPF_PROBE("raw_syscalls/", sys_enter, sys_enter_args)
-    
+
 BPF_PROBE("raw_syscalls/", sys_exit, sys_exit_args)
 ```
 
@@ -102,7 +102,7 @@ BPF_PROBE("raw_syscalls/", sys_exit, sys_exit_args)
 
 ![](./figure-9-2.jpg)
 
-*图 9-2. 攻击者可以在内核访问系统调用参数之前更改它们*
+_图 9-2. 攻击者可以在内核访问系统调用参数之前更改它们_
 
 如果不是因为 seccomp-bpf 中不允许程序解引用用户空间指针，所以根本无法检查数据，同样的攻击窗口也适用于 seccomp-bpf。
 
@@ -120,7 +120,7 @@ LSM 接口提供了一组钩子，每个钩子都在内核即将对内核数据�
 
 ![](./figure-9-3.jpg)
 
-*图 9-3. 使用 LSM BPF，eBPF 程序可由 LSM 钩子事件触发*
+_图 9-3. 使用 LSM BPF，eBPF 程序可由 LSM 钩子事件触发_
 
 [内核源代码](https://elixir.bootlin.com/linux/latest/source/include/linux/lsm_hooks.h)中记录了数百个 LSM 挂钩。需要说明的是，系统调用与 LSM 挂钩之间并不是一一对应的，但如果某个系统调用有可能从安全角度做一些有趣的事情，那么处理该系统调用就会触发一个或多个挂钩。
 
@@ -145,7 +145,7 @@ LSM BPF 是在内核 5.7 版本中添加的，这意味着（至少在撰写本�
 
 [Tetragon](https://github.com/cilium/tetragon) 是 Cilium 项目（也是 CNCF 的一部分）的一部分。Tetragon 的方法是建立一个框架，将 eBPF 程序附加到 Linux 内核中的任意函数上，而不是附加到 LSM API 钩子上。
 
-Tetragon 设计用于 Kubernetes 环境，该项目定义了一种名为 *TracingPolicy* 的自定义 Kubernetes 资源类型。它用于定义 eBPF 程序应附加的一组事件、eBPF 代码需要检查的条件以及满足条件时应采取的行动。以下是 TracingPolicy 示例的摘录：
+Tetragon 设计用于 Kubernetes 环境，该项目定义了一种名为 _TracingPolicy_ 的自定义 Kubernetes 资源类型。它用于定义 eBPF 程序应附加的一组事件、eBPF 代码需要检查的条件以及满足条件时应采取的行动。以下是 TracingPolicy 示例的摘录：
 
 ```
 spec:
@@ -180,13 +180,13 @@ Tetragon 的贡献者包括许多内核开发人员，他们利用自己对内�
 
 ![](./figure-9-4.jpg)
 
-*图 9-4. 从内核到用户空间的异步通知允许攻击有一定时间继续进行*
+_图 9-4. 从内核到用户空间的异步通知允许攻击有一定时间继续进行_
 
 在内核版本 5.3 及更高版本中，有一个名为 `bpf_send_signal()` 的 BPF 辅助函数。 Tetragon 使用此功能来实现预防性安全。如果策略定义了 Sigkill 操作，则任何匹配事件都将导致 Tetragon eBPF 代码生成 SIGKILL 信号，该信号终止尝试超出策略操作的进程。如图 9-5 所示，这是同步发生的；也就是说，内核正在执行的、被 eBPF 代码判定为超出策略的活动将被阻止完成。
 
 ![](./figure-9-5.jpg)
 
-*图 9-5. Tetragon 通过从内核发送 SIGKILL 信号来同步杀死恶意进程*
+_图 9-5. Tetragon 通过从内核发送 SIGKILL 信号来同步杀死恶意进程_
 
 Sigkill 策略需要谨慎使用，因为配置不正确的策略可能会导致不必要地终止应用程序，但它是 eBPF 用于安全目的的一个非常强大的功能。一开始，您可以在 "审计（audit）"模式下运行，该模式会生成安全事件，但不会应用 SIGKILL 强制，直到您确信该策略不会破坏任何东西。
 
@@ -205,6 +205,6 @@ Sigkill 策略需要谨慎使用，因为配置不正确的策略可能会导致
 
 ## 总结
 
-在本章中，您了解了 eBPF 在安全领域的应用是如何演变的，从对系统调用的低级别检查，发展到更加复杂的使用方式，例如用于安全策略检查、内核事件过滤和运行时执行的eBPF程序。
+在本章中，您了解了 eBPF 在安全领域的应用是如何演变的，从对系统调用的低级别检查，发展到更加复杂的使用方式，例如用于安全策略检查、内核事件过滤和运行时执行的 eBPF 程序。
 
-在将eBPF用于安全目的方面仍然存在着许多积极的开发工作。我相信在未来几年，我们将看到这个领域的工具不断发展，并广泛被采纳和应用。
+在将 eBPF 用于安全目的方面仍然存在着许多积极的开发工作。我相信在未来几年，我们将看到这个领域的工具不断发展，并广泛被采纳和应用。

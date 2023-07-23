@@ -1,19 +1,19 @@
-# 第十章 eBPF编程
+# 第十章 eBPF 编程
 
-到目前为止，在本书中，您已经学到了很多关于 eBPF 的知识，并看到了许多将其用于各种应用的示例。但是如果您想基于 eBPF 实现自己的想法怎么办？本章将讨论您编写自己的eBPF代码时的选择。
+到目前为止，在本书中，您已经学到了很多关于 eBPF 的知识，并看到了许多将其用于各种应用的示例。但是如果您想基于 eBPF 实现自己的想法怎么办？本章将讨论您编写自己的 eBPF 代码时的选择。
 
 正如您从阅读本书中了解到的，eBPF 编程由两部分组成：
 
 - 编写在内核中运行的 eBPF 程序
 - 编写管理 eBPF 程序并与之交互的用户空间代码
 
-本章中将讨论的大多数库和编程语言要求程序员同时处理两个部分，并意识到处理的内容在哪里。但是，bpftrace 可能是最简单的eBPF编程语言，它将这种区别隐藏起来，使得程序员不需要过多关注这一点。
+本章中将讨论的大多数库和编程语言要求程序员同时处理两个部分，并意识到处理的内容在哪里。但是，bpftrace 可能是最简单的 eBPF 编程语言，它将这种区别隐藏起来，使得程序员不需要过多关注这一点。
 
 ## Bpftrace
 
-正如该项目的 *README* 页面所述，"`bpftrace` 是一种用于 Linux eBPF 的高级跟踪语言......其灵感来自 awk 和 C，以及 DTrace 和 SystemTap 等前辈跟踪器。
+正如该项目的 _README_ 页面所述，"`bpftrace` 是一种用于 Linux eBPF 的高级跟踪语言......其灵感来自 awk 和 C，以及 DTrace 和 SystemTap 等前辈跟踪器。
 
-[bpftrace](https://github.com/iovisor/bpftrace) 命令行工具将使用这种高级语言编写的程序转换为eBPF内核代码，并在终端中提供一些输出格式化的结果。作为用户，您实际上不需要考虑内核和用户空间之间的划分。
+[bpftrace](https://github.com/iovisor/bpftrace) 命令行工具将使用这种高级语言编写的程序转换为 eBPF 内核代码，并在终端中提供一些输出格式化的结果。作为用户，您实际上不需要考虑内核和用户空间之间的划分。
 
 您可以在该项目的文档中找到许多有用的 one-liners 示例，其中包括一个很好的[教程](https://github.com/iovisor/bpftrace/blob/master/docs/tutorial_one_liners.md)，从编写一个简单的 “Hello World” 脚本开始，逐步引导您编写更复杂的脚本，可以跟踪从内核数据结构中读取的数据。
 
@@ -106,7 +106,7 @@ $ bpftool prog list
 497: tracepoint name sys_exit_openat tag 0484b911472301f7 gpl
         loaded_at 2022-11-18T12:44:05+0000 uid 0
         xlated 936B jited 565B memlock 4096B map_ids 254,255
-        
+
 $ bpftool map list
 254: hash flags 0x0
         key 8B value 8B max_entries 4096 memlock 331776B
@@ -120,9 +120,9 @@ $ bpftool map list
 >
 > bpftrace 实用程序构建在 BCC 之上，您在本书的其他地方见过它，我将在本章后面介绍它。 `bpftrace` 脚本被转换为 BCC 程序，然后使用 LLVM/Clang 工具链在运行时进行编译。
 
-如果您想要使用基于 eBPF 的性能测量的命令行工具，[bpftrace](https://github.com/iovisor/bpftrace) 很可能能够满足您的需求。但是，尽管 bpftrace 可以作为使用eBPF进行跟踪的强大工具，但它并没有完全展现eBPF所提供的全部可能性。
+如果您想要使用基于 eBPF 的性能测量的命令行工具，[bpftrace](https://github.com/iovisor/bpftrace) 很可能能够满足您的需求。但是，尽管 bpftrace 可以作为使用 eBPF 进行跟踪的强大工具，但它并没有完全展现 eBPF 所提供的全部可能性。
 
-要发挥eBPF的全部潜力，您需要直接为内核编写eBPF程序，并处理用户空间部分。这两个方面通常可以使用完全不同的编程语言来编写。让我们从运行在内核中的eBPF代码的选择开始。
+要发挥 eBPF 的全部潜力，您需要直接为内核编写 eBPF 程序，并处理用户空间部分。这两个方面通常可以使用完全不同的编程语言来编写。让我们从运行在内核中的 eBPF 代码的选择开始。
 
 ## 内核中 eBPF 的语言选择
 
@@ -132,7 +132,7 @@ eBPF 程序可直接以 eBPF 字节码编写（有关示例，请查看 Cloudfla
 >
 > eBPF 字节码并非适用于所有编译语言。如果该语言涉及运行时组件（如 Go 或 Java 虚拟机），则很可能与 eBPF 校验器不兼容。例如，很难想象内存垃圾回收如何能与验证器对内存安全使用的检查协同工作。同样，eBPF 程序必须是单线程的，因此语言中的任何并发功能都无法使用。
 
-虽然 [XDPLua](https://victornogueirario.github.io/xdplua/) 并不是真正的eBPF，但这是一个有趣的项目，它提出了在 Lua 脚本中编写 XDP 程序，直接在内核中运行。然而，该项目的初步研究表明，eBPF 可能更具性能，而且随着每个内核发布中 eBPF 的功能变得越来越强大（例如，现在可以实现循环），除非某些人偏好使用 Lua 脚本编写代码，否则并不清楚是否有很大的优势。
+虽然 [XDPLua](https://victornogueirario.github.io/xdplua/) 并不是真正的 eBPF，但这是一个有趣的项目，它提出了在 Lua 脚本中编写 XDP 程序，直接在内核中运行。然而，该项目的初步研究表明，eBPF 可能更具性能，而且随着每个内核发布中 eBPF 的功能变得越来越强大（例如，现在可以实现循环），除非某些人偏好使用 Lua 脚本编写代码，否则并不清楚是否有很大的优势。
 
 我敢打赌，大多数选择用 Rust 编写 eBPF 内核代码的人也会选择用同样的语言编写用户空间代码，因为共享数据结构无需重写。但这并不是强制性的，您可以将 eBPF 代码与您选择的任何用户空间语言混合使用。
 
@@ -144,7 +144,7 @@ eBPF 程序可直接以 eBPF 字节码编写（有关示例，请查看 Cloudfla
 
 除了介绍如何使用所提供的 BCC 工具来衡量性能的[文档](https://github.com/iovisor/bcc/blob/master/docs/tutorial.md)外，BCC 还包括[参考指南](https://github.com/iovisor/bcc/blob/master/docs/reference_guide.md)和 [Python 编程教程](https://github.com/iovisor/bcc/blob/master/docs/tutorial_bcc_python_developer.md)，以帮助您在此框架内开发自己的 eBPF 工具。
 
-第5章讨论了 BCC 的可移植性方法，即在运行时编译 eBPF 代码，确保其与目标机器的内核数据结构兼容。在 BCC 中，内核侧 eBPF 程序代码定义为字符串（或 BCC 读取为字符串的文件内容）。该字符串会传递给 Clang 进行编译，但在此之前，BCC 会对字符串进行一些预处理。这样，它就能为程序员提供方便的快捷方式，其中一些您在本书中已经看到过。例如，下面是 *chapter2/hello_map.py* 示例代码中的一些相关行：
+第 5 章讨论了 BCC 的可移植性方法，即在运行时编译 eBPF 代码，确保其与目标机器的内核数据结构兼容。在 BCC 中，内核侧 eBPF 程序代码定义为字符串（或 BCC 读取为字符串的文件内容）。该字符串会传递给 Clang 进行编译，但在此之前，BCC 会对字符串进行一些预处理。这样，它就能为程序员提供方便的快捷方式，其中一些您在本书中已经看到过。例如，下面是 _chapter2/hello_map.py_ 示例代码中的一些相关行：
 
 ```python
 # 这是一个Python程序，将在用户空间中运行。
@@ -159,7 +159,7 @@ int hello(void *ctx) {
     ...
     // 这行代码看起来像是在一个名为"output"的对象上调用了一个"ringbuf_output()"方法。但是等一下——在C语言中，对象的方法根本不存在！这里 BCC 做了一些重要的工作，将这些方法展开成底层的BPF辅助函数（https://github.com/iovisor/bcc/blob/14c5f99750cca211cbc620910ac574bb43f58d1d/src/cc/frontends/clang/b_frontend_action.cc#L959），在这种情况下是"bpf_ringbuf_output()"。
     output.ringbuf_output(&data, sizeof(data), 0);
-    
+
     return 0;
 }
 """
@@ -177,7 +177,7 @@ b["output"].open_ring_buffer(print_event)
 >
 > 如果您想探索 BCC 编程，[这本针对 Python 程序员的教程](https://github.com/iovisor/bcc/blob/master/docs/tutorial_bcc_python_developer.md)是一个很好的方法，它可以让您了解 BCC 的更多特性和功能，而本书的篇幅有限，不再过多介绍。
 
-文档并没有说得很清楚，但 BCC 除了支持 Python 作为 eBPF 工具用户空间部分的语言外，还支持用 Lua 和 C++ 编写工具。在提供的[示例](https://github.com/iovisor/bcc/tree/master/examples)中有 *lua* 和 *cpp* 目录，如果您想尝试这种方法，可以在此基础上编写自己的代码。
+文档并没有说得很清楚，但 BCC 除了支持 Python 作为 eBPF 工具用户空间部分的语言外，还支持用 Lua 和 C++ 编写工具。在提供的[示例](https://github.com/iovisor/bcc/tree/master/examples)中有 _lua_ 和 _cpp_ 目录，如果您想尝试这种方法，可以在此基础上编写自己的代码。
 
 BCC 对于程序员来说可能很方便，但是由于将编译器工具链与实用程序一起分发的效率很低（在第 5 章中更深入地讨论），如果您希望编写要分发的生产质量工具，我建议考虑本章中讨论的其他一些库。
 
@@ -185,17 +185,17 @@ BCC 对于程序员来说可能很方便，但是由于将编译器工具链与�
 
 您已经在本书中看到了很多用 C 语言编写的 eBPF 程序的例子，这些程序使用 LLVM 工具链编译成 eBPF 字节码。您还看到了为支持 BTF 和 CO-RE 而添加的扩展。许多 C 程序员也熟悉另一种主要的 C 编译器 GCC，他们会很高兴听到 [GCC 从第 10 版](https://ebpf.io/infrastructure/#gcc-compiler)开始也支持以 eBPF 为目标进行编译；不过，与 LLVM 提供的功能相比仍有一些差距。
 
-正如第 5 章所述，CO-RE 和 *libbpf* 提供了一种可移植的 eBPF 编程方法，无需在提供每个 eBPF 工具的同时提供编译器工具链。BCC 项目正是利用了这一点，除了原有的 BCC 性能跟踪工具集外，现在还重写了这些工具的版本，以利用 *libbpf*。人们普遍认为，基于 *libbpf* 重写的 BCC 工具版本是更好的选择，因为它们的内存占用更少（例如，Brendan Gregg [观察](https://github.com/iovisor/bcc/pull/2778#issuecomment-594202408)到基于 *libbpf* 的 opensnoop 版本需要大约 9 MB，而基于 Python 的版本则需要 80 MB。），而且在编译过程中不会出现启动延迟。
+正如第 5 章所述，CO-RE 和 _libbpf_ 提供了一种可移植的 eBPF 编程方法，无需在提供每个 eBPF 工具的同时提供编译器工具链。BCC 项目正是利用了这一点，除了原有的 BCC 性能跟踪工具集外，现在还重写了这些工具的版本，以利用 _libbpf_。人们普遍认为，基于 _libbpf_ 重写的 BCC 工具版本是更好的选择，因为它们的内存占用更少（例如，Brendan Gregg [观察](https://github.com/iovisor/bcc/pull/2778#issuecomment-594202408)到基于 _libbpf_ 的 opensnoop 版本需要大约 9 MB，而基于 Python 的版本则需要 80 MB。），而且在编译过程中不会出现启动延迟。
 
-如果您擅长使用 C 语言编程，那么使用 *libbpf* 将非常有意义。在本书中，您已经看到了很多这样的例子。
+如果您擅长使用 C 语言编程，那么使用 _libbpf_ 将非常有意义。在本书中，您已经看到了很多这样的例子。
 
-要想用 C 语言编写自己的 *libbpf* 程序，最好从 [*libbpf-bootstrap*](https://github.com/libbpf/libbpf-bootstrap) 开始（既然您已经读过这本书了！）。请阅读 Andrii Nakryiko 的[博文](https://nakryiko.com/posts/libbpf-bootstrap/)，了解这个项目背后的动机。
+要想用 C 语言编写自己的 _libbpf_ 程序，最好从 [_libbpf-bootstrap_](https://github.com/libbpf/libbpf-bootstrap) 开始（既然您已经读过这本书了！）。请阅读 Andrii Nakryiko 的[博文](https://nakryiko.com/posts/libbpf-bootstrap/)，了解这个项目背后的动机。
 
-此外，还有一个名为 *[libxdp](https://github.com/xdp-project/xdp-tools)* 的库，它建立在 *libbpf* 的基础上，使 XDP 程序的开发和管理变得更容易。这也是 xdp-tools 的一部分，其中还有我最喜欢的 eBPF 编程学习资源之一：[XDP 教程](https://github.com/xdp-project/xdp-tutorial)。（在 ["eBPF 和 Cilium Office Hours "直播节目的第 13 集](https://www.youtube.com/watch?v=YUI78vC4qSQ)中，观看我如何处理一些 XDP 教程示例。）
+此外，还有一个名为 _[libxdp](https://github.com/xdp-project/xdp-tools)_ 的库，它建立在 _libbpf_ 的基础上，使 XDP 程序的开发和管理变得更容易。这也是 xdp-tools 的一部分，其中还有我最喜欢的 eBPF 编程学习资源之一：[XDP 教程](https://github.com/xdp-project/xdp-tutorial)。（在 ["eBPF 和 Cilium Office Hours "直播节目的第 13 集](https://www.youtube.com/watch?v=YUI78vC4qSQ)中，观看我如何处理一些 XDP 教程示例。）
 
 但 C 语言是一种颇具挑战性的低级语言。C 语言程序员必须负责内存管理和缓冲区处理等工作，因此编写的代码很容易出现安全漏洞，更不用说因指针处理不当而导致崩溃了。eBPF 校验器在内核方面提供了帮助，但对用户空间代码却没有同等的保护。
 
-好消息是，还有一些适用于其他编程语言的库与 *libbpf* 进行接口交互，或者提供类似的重定位功能，以便编写可移植的eBPF程序。以下是其中一些最受欢迎的库。
+好消息是，还有一些适用于其他编程语言的库与 _libbpf_ 进行接口交互，或者提供类似的重定位功能，以便编写可移植的 eBPF 程序。以下是其中一些最受欢迎的库。
 
 ### Go
 
@@ -215,9 +215,9 @@ Go 语言已广泛应用于基础设施和云原生工具，因此用它来编�
 
 有了这个库，您就可以选择将 eBPF 程序编译成字节码，并使用一个名为 [bpf2go](https://pkg.go.dev/github.com/cilium/ebpf/cmd/bpf2go) 的工具将字节码嵌入 Go 源代码。作为编译步骤的一部分，您需要使用 LLVM/Clang 编译器来生成该代码。一旦 Go 代码编译完成，您就可以发布包含 eBPF 字节码的单一 Go 二进制文件，它可移植到不同的内核，除 Linux 内核本身外没有任何依赖项。
 
-*cilium/ebpf* 库还支持加载和管理以独立 ELF 文件（如本书中的 **.bpf.o* 示例）形式构建的 eBPF 程序。
+_cilium/ebpf_ 库还支持加载和管理以独立 ELF 文件（如本书中的 \*_.bpf.o_ 示例）形式构建的 eBPF 程序。
 
-在撰写本文时，*cilium/ebpf* 库支持用于跟踪的 perf 事件，包括相对较新的 fentry 事件，以及大量网络程序类型（如 XDP 和 cgroup 套接字附件）。
+在撰写本文时，_cilium/ebpf_ 库支持用于跟踪的 perf 事件，包括相对较新的 fentry 事件，以及大量网络程序类型（如 XDP 和 cgroup 套接字附件）。
 
 在 [cilium/ebpf 项目下的示例目录](https://github.com/cilium/ebpf/tree/main/examples)中，您将看到内核程序的 C 代码与 Go 中相应的用户空间代码位于同一目录中：
 
@@ -231,12 +231,12 @@ Go 语言已广泛应用于基础设施和云原生工具，因此用它来编�
 
   在软件包上运行 `go:generate`，只需一步就能重建 eBPF 程序并重新生成框架。
 
-与第 5 章中介绍的 `bpftool gen skeleton` 很相似，`bpf2go` 会生成用于操作 eBPF 对象的框架代码，从而最大限度地减少需要自己编写的用户空间代码（只不过它生成的是 Go 代码而不是 C 代码）。输出文件还包括包含字节码的 *.o* 对象文件。
+与第 5 章中介绍的 `bpftool gen skeleton` 很相似，`bpf2go` 会生成用于操作 eBPF 对象的框架代码，从而最大限度地减少需要自己编写的用户空间代码（只不过它生成的是 Go 代码而不是 C 代码）。输出文件还包括包含字节码的 _.o_ 对象文件。
 
-事实上，`bpf2go` 会生成两个版本的字节码 *.o* 文件，分别用于大端和小端架构。同时也会生成两个相应的 *.go* 文件，并在编译时使用目标平台的正确版本。例如，在 [cilium/ebpf 的 kprobe 示例](https://github.com/cilium/ebpf/tree/main/examples/kprobe)中，自动生成的文件是：
+事实上，`bpf2go` 会生成两个版本的字节码 _.o_ 文件，分别用于大端和小端架构。同时也会生成两个相应的 _.go_ 文件，并在编译时使用目标平台的正确版本。例如，在 [cilium/ebpf 的 kprobe 示例](https://github.com/cilium/ebpf/tree/main/examples/kprobe)中，自动生成的文件是：
 
-- 包含 eBPF 字节码的 *bpf_bpfeb.o* 和 *bpf_bpfel.o* ELF 文件
-- *bpf_bpfeb.go* 和 *bpf_bpfel.go* 文件定义了与字节码中定义 的map、程序和链接相对应的 Go 结构体和函数。
+- 包含 eBPF 字节码的 _bpf_bpfeb.o_ 和 _bpf_bpfel.o_ ELF 文件
+- _bpf_bpfeb.go_ 和 _bpf_bpfel.go_ 文件定义了与字节码中定义 的 map、程序和链接相对应的 Go 结构体和函数。
 
 您可以将自动生成的 Go 代码中定义的对象与生成它的 C 代码联系起来。以下是该 kprobe 示例的 C 代码中定义的对象：
 
@@ -297,9 +297,9 @@ for range ticker.C {
 
 ### Libbpfgo
 
-Aqua Security 的 [libbpfgo 项目](https://github.com/aquasecurity/libbpfgo)在 *libbpf* 的 C 代码基础上实现了 Go 封装，提供了加载和附加程序的实用工具，并使用通道（channel）等 Go 本地特性来接收事件。由于它基于 *libbpf* 构建，因此支持 CORE。
+Aqua Security 的 [libbpfgo 项目](https://github.com/aquasecurity/libbpfgo)在 _libbpf_ 的 C 代码基础上实现了 Go 封装，提供了加载和附加程序的实用工具，并使用通道（channel）等 Go 本地特性来接收事件。由于它基于 _libbpf_ 构建，因此支持 CORE。
 
-下面是从 *libbpfgo* 的 *README* 中摘录的示例，它提供了一个很好的高层次视图，让我们了解这个库的功能：
+下面是从 _libbpfgo_ 的 _README_ 中摘录的示例，它提供了一个很好的高层次视图，让我们了解这个库的功能：
 
 ```go
 // 从目标文件读取 eBPF 字节码。
@@ -317,7 +317,7 @@ rb.Start()
 e := <-eventsChannel
 ```
 
-该库是为 Aqua 的 [Tracee](https://github.com/aquasecurity/tracee) 安全项目创建的，也被其他项目所使用，如 Polar Signals 的 [Parca](https://github.com/parca-dev/parca-agent)，该项目提供基于 eBPF 的 CPU 性能分析。对于这个项目的方法，唯一的关注点是 *libbpf* C 代码和 Go 之间的 CGo 边界，这可能会导致性能和其他问题。（Dave Cheney 2016 年发表的文章[“CGO 不是 Go”](https://dave.cheney.net/2016/01/18/cgo-is-not-go)很好地概述了与 CGo 边界相关的问题。）
+该库是为 Aqua 的 [Tracee](https://github.com/aquasecurity/tracee) 安全项目创建的，也被其他项目所使用，如 Polar Signals 的 [Parca](https://github.com/parca-dev/parca-agent)，该项目提供基于 eBPF 的 CPU 性能分析。对于这个项目的方法，唯一的关注点是 _libbpf_ C 代码和 Go 之间的 CGo 边界，这可能会导致性能和其他问题。（Dave Cheney 2016 年发表的文章[“CGO 不是 Go”](https://dave.cheney.net/2016/01/18/cgo-is-not-go)很好地概述了与 CGo 边界相关的问题。）
 
 虽然近十年来 Go 一直是许多基础设施编码的既定语言，但最近越来越多的开发人员更喜欢使用 Rust。
 
@@ -327,7 +327,7 @@ Rust 越来越多地被用于构建基础架构工具。Rust 允许使用 C 语�
 
 正如我在本章前面所讨论的，Rust 可以编译成 eBPF 字节码，这意味着（在正确的库支持下）可以用 Rust 编写 eBPF 工具的用户空间和内核代码。
 
-Rust eBPF 开发有几个选项：*libbpf-rs*、*Redbpf* 和 Aya。
+Rust eBPF 开发有几个选项：_libbpf-rs_、_Redbpf_ 和 Aya。
 
 ### Libbpf-rs
 
@@ -335,7 +335,7 @@ Rust eBPF 开发有几个选项：*libbpf-rs*、*Redbpf* 和 Aya。
 
 > 提示
 >
-> [*libbpf-bootstrap*](https://github.com/libbpf/libbpf-bootstrap) 项目中还有更多使用 Rust 语言的示例，如果您想尝试使用该 crate 构建自己的代码，这些示例可以帮助您快速入门。
+> [_libbpf-bootstrap_](https://github.com/libbpf/libbpf-bootstrap) 项目中还有更多使用 Rust 语言的示例，如果您想尝试使用该 crate 构建自己的代码，这些示例可以帮助您快速入门。
 
 这个 crate 有助于将 eBPF 程序整合到基于 Rust 的项目中，但它并不能满足许多人想用 Rust 编写内核代码的愿望。让我们看看其他一些能实现这一愿望的项目。
 
@@ -343,13 +343,13 @@ Rust eBPF 开发有几个选项：*libbpf-rs*、*Redbpf* 和 Aya。
 
 [Redbpf](https://github.com/foniod/redbpf) 是一组与 libbpf 进行接口交互的 Rust crates，作为 foniod 的一部分开发，foniod 是一个基于 eBPF 的安全监控代理。
 
-Redbpf 是在 Rust 能够编译为 eBPF 字节码之前开发的，因此它使用了[多步编译过程](https://blog.redsift.com/labs/oxidised-ebpf-ii-taming-llvm/)，包括从 Rust 编译为 LLVM 位码（bitcode），然后使用 LLVM 工具链生成 ELF 格式的 eBPF 字节码。Redbpf 支持多种程序类型，包括 tracepoints、kprobes 和uprobes、XDP、TC 以及一些套接字事件。
+Redbpf 是在 Rust 能够编译为 eBPF 字节码之前开发的，因此它使用了[多步编译过程](https://blog.redsift.com/labs/oxidised-ebpf-ii-taming-llvm/)，包括从 Rust 编译为 LLVM 位码（bitcode），然后使用 LLVM 工具链生成 ELF 格式的 eBPF 字节码。Redbpf 支持多种程序类型，包括 tracepoints、kprobes 和 uprobes、XDP、TC 以及一些套接字事件。
 
 随着 Rust 编译器 rustc 获得了直接生成 eBPF 字节码的能力，一个名为 Aya 的项目利用了这一能力。在撰写本文时，根据 [ebpf.io 上的社区网站](https://ebpf.io/infrastructure/#ebpf-libraries)，Aya 被认为是 "新兴 "项目，而 Redbpf 则被列为主要项目，但我个人的观点是，势头似乎正朝着 Aya 的方向发展。
 
 ### Aya
 
-[Aya](https://aya-rs.dev/book/) 是直接在 Rust 的系统调用级别构建的，所以它不依赖 *libbpf*（或者 BCC 或 LLVM 工具链）。但它确实支持 BTF 格式，与 *libbpf* 一样支持重定位（如第 5 章所述），因此它提供了与 CO-RE 相同的能力，一次编译即可在其他内核上运行。在撰写本文时，它比 *Redbpf* 支持更广泛的 eBPF 程序类型，包括跟踪/perf 相关事件、XDP 和 TC、cgroups 和 LSM 附加。
+[Aya](https://aya-rs.dev/book/) 是直接在 Rust 的系统调用级别构建的，所以它不依赖 _libbpf_（或者 BCC 或 LLVM 工具链）。但它确实支持 BTF 格式，与 _libbpf_ 一样支持重定位（如第 5 章所述），因此它提供了与 CO-RE 相同的能力，一次编译即可在其他内核上运行。在撰写本文时，它比 _Redbpf_ 支持更广泛的 eBPF 程序类型，包括跟踪/perf 相关事件、XDP 和 TC、cgroups 和 LSM 附加。
 
 正如我提到的，Rust 编译器也支持[编译成 eBPF 字节码](https://github.com/rust-lang/rust/pull/79608)，因此这种语言可用于内核和用户空间的 eBPF 编程。
 
@@ -359,7 +359,7 @@ Redbpf 是在 Rust 能够编译为 eBPF 字节码之前开发的，因此它使�
 
 该项目包含 [aya-tool](https://aya-rs.dev/book/aya/aya-tool/)，一个实用工具，用于生成与内核数据结构匹配的 Rust 结构定义，这样您就不必自己编写它们。
 
-Aya项目非常强调开发者体验，让新人能够轻松上手。考虑到这一点，[“Aya book”](https://aya-rs.dev/book/)是一本非常可读的介绍，其中包含一些很好的示例代码，并附有有用的解释注释。
+Aya 项目非常强调开发者体验，让新人能够轻松上手。考虑到这一点，[“Aya book”](https://aya-rs.dev/book/)是一本非常可读的介绍，其中包含一些很好的示例代码，并附有有用的解释注释。
 
 为了让您简单了解 Rust 中的 eBPF 代码，下面摘录了 Aya 允许所有流量的基本 XDP 示例：
 
@@ -452,11 +452,11 @@ eBPF 程序是附加到内核事件的函数。许多应用程序需要跟踪多
 
 但为什么需要同时跟踪这些系统调用的入口和出口呢？使用入口点是因为系统调用参数在入口点可用，这些参数包括文件名和传递给 `open[at]` 系统调用的任何标志（flag）。但在这个阶段，要知道文件是否会被成功打开还为时过早。这就解释了为什么有必要在退出点也附加 eBPF 程序。
 
-如果您看一下 [*libbpf-tools* 版本的 opensnoop](https://github.com/iovisor/bcc/blob/master/libbpf-tools/opensnoop.c)，就会发现只有一个用户空间程序，它会将所有四个 eBPF 程序加载到内核中，并将它们附加到各自的事件中。eBPF 程序本身基本上是独立的，但它们使用 eBPF map 来相互协调。
+如果您看一下 [_libbpf-tools_ 版本的 opensnoop](https://github.com/iovisor/bcc/blob/master/libbpf-tools/opensnoop.c)，就会发现只有一个用户空间程序，它会将所有四个 eBPF 程序加载到内核中，并将它们附加到各自的事件中。eBPF 程序本身基本上是独立的，但它们使用 eBPF map 来相互协调。
 
-一个复杂的应用程序可能需要在很长一段时间内动态地添加和移除eBPF程序。对于任何给定的应用程序，甚至可能没有固定数量的eBPF程序。例如，Cilium 将 eBPF 程序附加到每个虚拟网络接口，在Kubernetes环境中，这些接口会随着正在运行的 Pod 数量的变化而动态增减。
+一个复杂的应用程序可能需要在很长一段时间内动态地添加和移除 eBPF 程序。对于任何给定的应用程序，甚至可能没有固定数量的 eBPF 程序。例如，Cilium 将 eBPF 程序附加到每个虚拟网络接口，在 Kubernetes 环境中，这些接口会随着正在运行的 Pod 数量的变化而动态增减。
 
-本章中的大多数库都会自动处理多种 eBPF 程序。例如，*libbpf* 和 *ebpf-go* 生成框架代码，通过一次函数调用，就可从对象文件或缓冲区读入字节码，加载所有程序和 map。它们还能生成更细粒度的函数，以便您可以单独操作程序和 map。
+本章中的大多数库都会自动处理多种 eBPF 程序。例如，_libbpf_ 和 _ebpf-go_ 生成框架代码，通过一次函数调用，就可从对象文件或缓冲区读入字节码，加载所有程序和 map。它们还能生成更细粒度的函数，以便您可以单独操作程序和 map。
 
 ## 总结
 
@@ -466,7 +466,7 @@ eBPF 程序是附加到内核事件的函数。许多应用程序需要跟踪多
 
 为了获得更大的灵活性和控制力，如果您熟悉 Python，并且不关心运行时发生的编译步骤，BCC 是构建 eBPF 工具的快速方法。
 
-如果您编写的 eBPF 代码需要在不同内核版本之间广泛分发和移植，那么您可能需要利用 CO-RE。在撰写本文时，支持 CO-RE 的用户空间框架包括 C 语言的 *libbpf*、Go 语言的 *cilium/ebpf* 和 *libbpfgo* 以及 Rust 语言的 Aya。
+如果您编写的 eBPF 代码需要在不同内核版本之间广泛分发和移植，那么您可能需要利用 CO-RE。在撰写本文时，支持 CO-RE 的用户空间框架包括 C 语言的 _libbpf_、Go 语言的 _cilium/ebpf_ 和 _libbpfgo_ 以及 Rust 语言的 Aya。
 
 如需更多建议，我强烈建议您加入 eBPF Slack 并在那里讨论您的问题。您可能会在该社区中找到许多这些语言库的维护者。
 
@@ -477,4 +477,3 @@ eBPF 程序是附加到内核事件的函数。许多应用程序需要跟踪多
 1. 使用您选择的一个或多个库，编写一个 "Hello World" 示例程序，输出一条简单的跟踪信息。
 2. 使用 `llvm-objdump` 将生成的字节码与第 3 章中的 "Hello World" 示例进行比较。您会发现很多相似之处！
 3. 正如第 4 章所述，可以使用 `strace -e bpf` 来查看何时进行 `bpf()` 系统调用。在您的 "Hello World" 程序上试试看，看看它的行为是否符合您的预期。
-
