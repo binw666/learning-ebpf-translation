@@ -166,7 +166,7 @@ _图 1-4. 内核中的 eBPF 程序可以看到在 Kubernetes 节点上运行的�
 
 - 为了添加 Sidecar，必须重新启动应用程序 pod。
 - 必须修改应用程序的 YAML。这通常是一个自动化过程，但如果出问题，Sidecar 就不会被添加，这意味着 pod 无法被检测。例如，一次部署可能会标注，来指示准入控制器将 Sidecar 的 YAML 添加到本次部署的 pod spec 中。但如果部署没有正确标注，Sidecar 就不会被添加，因此检测工具不具备可见性。
-- 当一个 pod 中有多个容器时，它们可能会在不同的时间达到就绪状态，其顺序可能不可预测。注入 Sidecar 可能会显著延长 Pod 的启动时间，甚至更糟糕的是，可能会引发竞争条件或其他不稳定性问题。例如，[Open Service Mesh 文档](https://oreil.ly/z80Q5)描述了应用程序容器必须能够应对所有流量在 Envoy 代理容器准备就绪之前被丢弃的情况。
+- 当一个 pod 中有多个容器时，它们可能会在不同的时间达到就绪状态，其顺序可能不可预测。注入 Sidecar 可能会显著延长 Pod 的启动时间，甚至更糟糕的是，可能会引发竞争条件或其他不稳定性问题。例如，[Open Service Mesh 文档](https://release-v1-1.docs.openservicemesh.io/docs/guides/troubleshooting/container_startup/)描述了应用程序容器必须能够应对所有流量在 Envoy 代理容器准备就绪之前被丢弃的情况。
 - 当网络功能（如服务网格（service mesh））作为 Sidecar 实现时，这意味着所有进出应用程序容器的流量都必须通过内核中的网络协议栈到达网络代理容器，从而增加了流量的延迟；如图 1-5 所示。我们将在第9章讨论用 eBPF 改善网络效率的方法。
 
 ![Alt text](figure-1-5.jpg)
