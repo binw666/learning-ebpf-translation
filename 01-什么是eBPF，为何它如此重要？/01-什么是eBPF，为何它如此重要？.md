@@ -2,9 +2,9 @@
 
 eBPF 是一种革命性的内核技术，允许开发者编写自定义代码并动态加载到内核中，从而改变内核的行为。（如果您对内核的概念不太自信，不用担心——我们将在本章稍后进行介绍。）
 
-这种技术使得新一代高性能网络、可观察性和安全工具成为可能。正如您将看到的，如果你想用这些基于 eBPF 的工具来检测应用程序，你不需要以任何方式修改或重新配置应用程序，这要归功于 eBPF 在内核中的优势地位。
+这种技术使得新一代高性能网络、可观察性和安全工具成为可能。正如您将看到的，如果您想用这些基于 eBPF 的工具来检测应用程序，您不需要以任何方式修改或重新配置应用程序，这要归功于 eBPF 在内核中的优势地位。
 
-使用 eBPF，你可以做的事情包括但不限于：
+使用 eBPF，您可以做的事情包括但不限于：
 
 - 对系统几乎任何方面的性能追踪
 - 高性能网络，具有内置的可见性
@@ -36,7 +36,7 @@ BPF 代表“Berkeley Packet Filter”，它首次引入 Linux 是在 1997 年�
 从 2014 年的内核 3.18 版本开始，BPF 演变为我们所说的 "extended BPF" 或 "eBPF"。这涉及到几项重大变更：
 
 - 为了在 64 位机器上更高效的运行，BPF 指令集被彻底改造，解释器也被完全重写。
-- 引入了 eBPF *映射（maps）*，这是可以由 BPF 程序和用户空间应用程序访问的数据结构，允许在它们之间共享信息。您将在第 2 章中了解映射。
+- 引入了 eBPF _映射（maps）_，这是可以由 BPF 程序和用户空间应用程序访问的数据结构，允许在它们之间共享信息。您将在第 2 章中了解映射。
 - 添加了 `bpf()` 系统调用，以便用户空间程序可以与内核中的 eBPF 程序进行交互。您将在第 4 章中阅读到关于这个系统调用的内容。
 - 增加了几个 BPF 辅助函数。您将在第 2 章中看到一些示例，并在第 6 章中了解更多细节。
 - 增加了 eBPF 验证器，以便确保 eBPF 程序可以安全运行。这将在第 6 章中讨论。
@@ -45,23 +45,21 @@ BPF 代表“Berkeley Packet Filter”，它首次引入 Linux 是在 1997 年�
 
 ## eBPF 向生产系统的演变
 
-自 2005 年以来，Linux 内核中一直存在一种名为 *kprobes*（内核探针）的特性，允许在内核代码的几乎任何指令上设置陷阱（traps）。开发者可以编写内核模块，将函数附加到 kprobes 上，用于调试或性能测量[^3]。
+自 2005 年以来，Linux 内核中一直存在一种名为 _kprobes_（内核探针）的特性，允许在内核代码的几乎任何指令上设置陷阱（traps）。开发者可以编写内核模块，将函数附加到 kprobes 上，用于调试或性能测量[^3]。
 
-2015年，添加了将 eBPF 程序附加到kprobes的功能，这开启了Linux系统中追踪方式的革命性变革。同时，内核的网络协议栈中开始添加钩子（hooks），允许eBPF程序处理更多的网络功能。在第8章中，我们将详细探讨这一点。
+2015 年，添加了将 eBPF 程序附加到 kprobes 的功能，这开启了 Linux 系统中追踪方式的革命性变革。同时，内核的网络协议栈中开始添加钩子（hooks），允许 eBPF 程序处理更多的网络功能。在第 8 章中，我们将详细探讨这一点。
 
-到2016年，基于eBPF的工具已在生产系统中使用。[Brendan Gregg](https://www.brendangregg.com/)在Netflix的追踪工作在基础设施和运维领域中广为人知，[他曾表示](https://www.brendangregg.com/blog/2016-03-05/linux-bpf-superpowers.html)eBPF“为Linux带来了超能力”。同年，Cilium项目宣布成立，这是第一个使用eBPF替换容器环境中整个数据路径的网络项目。
+到 2016 年，基于 eBPF 的工具已在生产系统中使用。[Brendan Gregg](https://www.brendangregg.com/)在 Netflix 的追踪工作在基础设施和运维领域中广为人知，[他曾表示](https://www.brendangregg.com/blog/2016-03-05/linux-bpf-superpowers.html)eBPF“为 Linux 带来了超能力”。同年，Cilium 项目宣布成立，这是第一个使用 eBPF 替换容器环境中整个数据路径的网络项目。
 
 接下来的一年，Facebook（现在是 Meta）将 Katran 项目开源。Katran 是一个四层负载均衡器，满足了 Facebook 对高度可扩展和快速的解决方案的需求。自 2017 年以来，所有发送到 Facebook.com 的数据包都通过 eBPF/XDP 进行处理。（这一精彩事实来自 Daniel Borkmann 在 KubeCon 2020 上发表的题为 [“eBPF 和 Kubernetes：用于扩展微服务的小助手”](https://youtu.be/99jUcLt3rSk)。）对我个人而言，这一年点燃了我对这项技术所带来可能性的兴奋，因为我在德克萨斯州奥斯汀的 DockerCon 上看到了 Thomas Graf 关于 eBPF 和 Cilium 项目的演讲。
 
-次年，Facebook（现在是Meta）将[Katran](https://github.com/facebookincubator/katran)开源。Katran是一个四层负载均衡器，满足了Facebook对[高度可扩展和快速解决方案](https://engineering.fb.com/2018/05/22/open-source/open-sourcing-katran-a-scalable-network-load-balancer/)的需求。自2017年以来，每一个访问[Facebook.com](http://facebook.com/)的数据包都通过了eBPF/XDP[^4]。对我个人而言，这一年点燃了我对这种技术可能性的热情，在得克萨斯州奥斯汀的DockerCon上听到[Thomas Graf关于eBPF和Cilium项目的演讲](https://www.slideshare.net/slideshow/dockercon-2017-cilium-network-and-application-security-with-bpf-and-xdp/75142762)后尤为如此。
+次年，Facebook（现在是 Meta）将[Katran](https://github.com/facebookincubator/katran)开源。Katran 是一个四层负载均衡器，满足了 Facebook 对[高度可扩展和快速解决方案](https://engineering.fb.com/2018/05/22/open-source/open-sourcing-katran-a-scalable-network-load-balancer/)的需求。自 2017 年以来，每一个访问[Facebook.com](http://facebook.com/)的数据包都通过了 eBPF/XDP[^4]。对我个人而言，这一年点燃了我对这种技术可能性的热情，在得克萨斯州奥斯汀的 DockerCon 上听到[Thomas Graf 关于 eBPF 和 Cilium 项目的演讲](https://www.slideshare.net/slideshow/dockercon-2017-cilium-network-and-application-security-with-bpf-and-xdp/75142762)后尤为如此。
 
-2018年，eBPF成为Linux内核中的一个独立子系统，由来自Isovalent的[Daniel Borkmann](http://borkmann.ch/)和来自Meta的[Alexei Starovoitov](https://www.linkedin.cn/incareer/in/alexey1)担任维护者（后来同样来自 Meta 的 [Andrii Nakryiko](https://nakryiko.com/) 加入了他们）。同年，引入了BPF类型格式（BTF），使得eBPF程序更具可移植性。我们将在第5章中探讨这一点。
+2018 年，eBPF 成为 Linux 内核中的一个独立子系统，由来自 Isovalent 的[Daniel Borkmann](http://borkmann.ch/)和来自 Meta 的[Alexei Starovoitov](https://www.linkedin.cn/incareer/in/alexey1)担任维护者（后来同样来自 Meta 的 [Andrii Nakryiko](https://nakryiko.com/) 加入了他们）。同年，引入了 BPF 类型格式（BTF），使得 eBPF 程序更具可移植性。我们将在第 5 章中探讨这一点。
 
-2020 年引入了 LSM BPF，允许 eBPF 程序附加到 Linux 安全模块 (Linux Security Module，LSM) 内核接口。这表明 eBPF 的第三个主要用途已经确定：除了网络和可观察性之外，eBPF还成为了安全工具的优秀平台。
+2020 年引入了 LSM BPF，允许 eBPF 程序附加到 Linux 安全模块 (Linux Security Module，LSM) 内核接口。这表明 eBPF 的第三个主要用途已经确定：除了网络和可观察性之外，eBPF 还成为了安全工具的优秀平台。
 
-多年来，得益于300多名内核开发者以及众多相关用户空间工具（如第3章中会介绍的 `bpftool`）、编译器和编程语言库的贡献，eBPF的功能得到了显著提升。程序曾经被限制为 4,096 条指令，但如今这一限制已增加到 100 万条经过验证的指令[^5]，并且通过对尾调用（tail calls）和函数调用的支持（将在第2章和第3章中看到），这一限制实际上变得无关紧要。
-
-
+多年来，得益于 300 多名内核开发者以及众多相关用户空间工具（如第 3 章中会介绍的 `bpftool`）、编译器和编程语言库的贡献，eBPF 的功能得到了显著提升。程序曾经被限制为 4,096 条指令，但如今这一限制已增加到 100 万条经过验证的指令[^5]，并且通过对尾调用（tail calls）和函数调用的支持（将在第 2 章和第 3 章中看到），这一限制实际上变得无关紧要。
 
 > [!NOTE]
 >
@@ -75,7 +73,7 @@ BPF 代表“Berkeley Packet Filter”，它首次引入 Linux 是在 1997 年�
 
 eBPF 的应用范围已经远远超出了数据包过滤的范畴，因此这个缩写现在本质上已经失去了意义，它已经成为一个独立的术语。由于当前广泛使用的 Linux 内核都对 "extended" 部分提供支持，因此 eBPF 和 BPF 这两个术语通常可以互换使用。在内核源代码和 eBPF 编程中，常用的术语是 BPF。例如，在第 4 章中我们会看到，与 eBPF 进行交互的系统调用是`bpf()`，辅助函数以`bpf_`开头，不同类型的(e)BPF 程序以`BPF_PROG_TYPE`开头的名称进行标识。在内核社区之外，"eBPF"这个名称似乎已经被广泛使用，例如在社区网站 [ebpf.io](https://ebpf.io) 上和 [eBPF 基金会](http://ebpf.foundation)的名称中都使用了这个术语。
 
-eBPF 的应用范围远远超出了数据包过滤的范畴，以至于这个缩写如今基本上没有实际意义，已经成为一个独立的术语。而且，由于目前广泛使用的 Linux 内核都支持“扩展（extended）”部分，因此 *eBPF* 和 *BPF* 的术语基本上可以互换使用。在内核源代码和 eBPF 编程中，常用的术语是 *BPF*。例如，正如我们将在第4章中看到的，与 eBPF 交互的系统调用是 `bpf()`，辅助函数以 `bpf_` 开头，不同类型的 (e)BPF 程序以 `BPF_PROG_TYPE` 开头。在内核社区之外，“eBPF”这个名称似乎已经被固定下来，例如，在社区网站 [ebpf.io](https://ebpf.io/) 和 [eBPF 基金会](https://ebpf.foundation/)的名称中都使用了这个术语。
+eBPF 的应用范围远远超出了数据包过滤的范畴，以至于这个缩写如今基本上没有实际意义，已经成为一个独立的术语。而且，由于目前广泛使用的 Linux 内核都支持“扩展（extended）”部分，因此 _eBPF_ 和 _BPF_ 的术语基本上可以互换使用。在内核源代码和 eBPF 编程中，常用的术语是 _BPF_。例如，正如我们将在第 4 章中看到的，与 eBPF 交互的系统调用是 `bpf()`，辅助函数以 `bpf_` 开头，不同类型的 (e)BPF 程序以 `BPF_PROG_TYPE` 开头。在内核社区之外，“eBPF”这个名称似乎已经被固定下来，例如，在社区网站 [ebpf.io](https://ebpf.io/) 和 [eBPF 基金会](https://ebpf.foundation/)的名称中都使用了这个术语。
 
 ## Linux 内核
 
@@ -87,7 +85,7 @@ Linux 内核是应用程序与其运行的硬件之间的软件层。应用程�
 
 ![图 1-1. 用户空间中的应用程序通过系统调用接口向内核发出请求](figure-1-1.jpg)
 
-*图 1-1. 用户空间中的应用程序通过系统调用接口向内核发出请求*
+_图 1-1. 用户空间中的应用程序通过系统调用接口向内核发出请求_
 
 以下是一个示例，使用 cat 命令将“hello”这个词回显到屏幕上，涉及超过 100 次系统调用：
 
@@ -125,7 +123,7 @@ _图 1-2. 向内核添加功能（插图由 Isovalent 的 Vadim Shchekoldin 绘�
 
 内核安全性是 Linux 发行版需要很长时间才能引入新版本的一个重要原因。如果其他人在各种情况下运行某个内核版本数月或数年，这应该已经排除了问题。发行版维护者可以相对自信地认为，他们提供给用户/客户的内核是经过*加固（hardened）*的——即安全运行的。
 
-eBPF 提供了一种非常不同的安全方法：*eBPF 验证器（eBPF verifier）*，确保只有在安全运行的情况下才能加载 eBPF 程序——它不会导致机器崩溃或陷入死循环，也不会允许数据被泄露。我们将在第6章中更详细地讨论验证过程。
+eBPF 提供了一种非常不同的安全方法：_eBPF 验证器（eBPF verifier）_，确保只有在安全运行的情况下才能加载 eBPF 程序——它不会导致机器崩溃或陷入死循环，也不会允许数据被泄露。我们将在第 6 章中更详细地讨论验证过程。
 
 ## eBPF 程序的动态加载
 
@@ -167,7 +165,7 @@ _图 1-4. 内核中的 eBPF 程序可以看到在 Kubernetes 节点上运行的�
 - 为了添加 Sidecar，必须重新启动应用程序 pod。
 - 必须修改应用程序的 YAML。这通常是一个自动化过程，但如果出问题，Sidecar 就不会被添加，这意味着 pod 无法被检测。例如，一次部署可能会标注，来指示准入控制器将 Sidecar 的 YAML 添加到本次部署的 pod spec 中。但如果部署没有正确标注，Sidecar 就不会被添加，因此检测工具不具备可见性。
 - 当一个 pod 中有多个容器时，它们可能会在不同的时间达到就绪状态，其顺序可能不可预测。注入 Sidecar 可能会显著延长 Pod 的启动时间，甚至更糟糕的是，可能会引发竞争条件或其他不稳定性问题。例如，[Open Service Mesh 文档](https://release-v1-1.docs.openservicemesh.io/docs/guides/troubleshooting/container_startup/)描述了应用程序容器必须能够应对所有流量在 Envoy 代理容器准备就绪之前被丢弃的情况。
-- 当网络功能（如服务网格（service mesh））作为 Sidecar 实现时，这意味着所有进出应用程序容器的流量都必须通过内核中的网络协议栈到达网络代理容器，从而增加了流量的延迟；如图 1-5 所示。我们将在第9章讨论用 eBPF 改善网络效率的方法。
+- 当网络功能（如服务网格（service mesh））作为 Sidecar 实现时，这意味着所有进出应用程序容器的流量都必须通过内核中的网络协议栈到达网络代理容器，从而增加了流量的延迟；如图 1-5 所示。我们将在第 9 章讨论用 eBPF 改善网络效率的方法。
 
 ![Alt text](figure-1-5.jpg)
 
@@ -181,15 +179,13 @@ _图 1-5. 使用服务网格代理 sidecar 容器的网络数据包路径_
 
 到目前为止，我们主要从概念层面讨论了 eBPF。在下一章中，我们将更具体地探索基于 eBPF 的应用程序的组成部分。
 
-[^1]: Steven McCanne 和 Van Jacobson. [“The BSD Packet Filter: A New Architecture for User-level Packet Capture”](https://www.tcpdump.org/papers/bpf-usenix93.pdf) 
+[^1]: Steven McCanne 和 Van Jacobson. [“The BSD Packet Filter: A New Architecture for User-level Packet Capture”](https://www.tcpdump.org/papers/bpf-usenix93.pdf)
 [^2]: 这些及其他细节来自 Alexei Starovoitov 在 2015 年 NetDev 演讲中的[“BPF – 内核中的虚拟机（BPF – in-kernel virtual machine）”](https://netdevconf.info//0.1/docs/starovoitov-bpf_netdev01_2015feb13.pdf)。
 [^3]: [内核文档](https://docs.kernel.org/trace/kprobes.html)中对 kprobes 工作原理有详细的描述。
-
-[^4]: 这一精彩事实来自 Daniel Borkmann 在 2020 年 KubeCon 演讲中的[“eBPF 和 Kubernetes: 用于扩展微服务的小助手（eBPF and Kubernetes: Little Helper Minions for Scaling Microservices）”](https://www.youtube.com/watch?v=99jUcLt3rSk&amp;t=655s)。
+[^4]: 这一精彩事实来自 Daniel Borkmann 在 2020 年 KubeCon 演讲中的[“eBPF 和 Kubernetes: 用于扩展微服务的小助手（eBPF and Kubernetes: Little Helper Minions for Scaling Microservices）”](https://www.youtube.com/watch?v=99jUcLt3rSk&t=655s)。
 [^5]: 有关指令限制和“复杂性限制”的更多细节，请参见 [https://oreil.ly/0iVer](https://oreil.ly/0iVer)。
 [^6]: 摘自 Liz Rice 的 “什么是 eBPF？（What Is eBPF?）”。版权 © 2022 O’Reilly Media。经许可使用。
-[^7]: [“Linux 5.12 的代码量约 2880 万行”](https://www.phoronix.com/news/Linux-5.12-rc1-Code-Size)。Phoronix，2021年3月。
+[^7]: [“Linux 5.12 的代码量约 2880 万行”](https://www.phoronix.com/news/Linux-5.12-rc1-Code-Size)。Phoronix，2021 年 3 月。
 [^8]: Jiang Y, Adams B, German DM. 2013. [“我的补丁会被接受吗？会有多快？”](https://dl.acm.org/doi/pdf/10.5555/2487085.2487111)（2013）。根据这篇研究论文，33%的补丁被接受，大多数补丁需要三到六个月的时间。
 [^9]: 庆幸的是，现有功能的安全补丁会更快地发布。
-[^10]: Høiland-Jørgensen T, Brouer JD, Borkmann D 等人 [“eXpress 数据路径：操作系统内核中的快速可编程数据包处理”](https://dl.acm.org/doi/10.1145/3281411.3281443)。第14届国际网络实验与技术会议（CoNEXT ’18）论文集。计算机协会；2018:54–66。
-
+[^10]: Høiland-Jørgensen T, Brouer JD, Borkmann D 等人 [“eXpress 数据路径：操作系统内核中的快速可编程数据包处理”](https://dl.acm.org/doi/10.1145/3281411.3281443)。第 14 届国际网络实验与技术会议（CoNEXT ’18）论文集。计算机协会；2018:54–66。
