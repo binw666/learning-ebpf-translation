@@ -14,7 +14,8 @@
 
 详细内容请查看[目录](./src/SUMMARY.md)
 
-# 仓库地址
+# 相关链接
+- 在线阅读：[https://binw666.github.io/learning-ebpf-translation/](https://binw666.github.io/learning-ebpf-translation/)
 - GitHub: [https://github.com/binw666/learning-ebpf-translation](https://github.com/binw666/learning-ebpf-translation)
 - Gitee: [https://gitee.com/binw666/learning-ebpf-translation](https://gitee.com/binw666/learning-ebpf-translation)
   - 需要注意，Gitee 无法正确显示脚注
