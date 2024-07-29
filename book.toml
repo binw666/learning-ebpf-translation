@@ -1,3 +1,8 @@
 [book]
 title = "学习 eBPF"
 language = "zh-CN"
+# 支持侧边目录
+[preprocessor.pagetoc]
+[output.html]
+additional-css = ["theme/pagetoc.css"]
+additional-js  = ["theme/pagetoc.js"]
