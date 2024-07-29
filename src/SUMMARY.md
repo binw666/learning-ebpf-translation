@@ -1,7 +1,4 @@
 # Summary
-关于本书
-- [关于本书](../readme.md)
-目录
 - [前言](./00-前言/00-前言.md)
 - [什么是eBPF，为何它如此重要？](./01-什么是eBPF，为何它如此重要？/01-什么是eBPF，为何它如此重要？.md)
 - [eBPF的Hello World](./02-eBPF的Hello%20World/02-eBPF的Hello%20World.md)
