@@ -53,7 +53,6 @@ BPF 代表“Berkeley Packet Filter”，它首次引入 Linux 是在 1997 年�
 
 接下来的一年，Facebook（现在是 Meta）将 Katran 项目开源。Katran 是一个四层负载均衡器，满足了 Facebook 对高度可扩展和快速的解决方案的需求。自 2017 年以来，所有发送到 Facebook.com 的数据包都通过 eBPF/XDP 进行处理。（这一精彩事实来自 Daniel Borkmann 在 KubeCon 2020 上发表的题为 [“eBPF 和 Kubernetes：用于扩展微服务的小助手”](https://youtu.be/99jUcLt3rSk)。）对我个人而言，这一年点燃了我对这项技术所带来可能性的兴奋，因为我在德克萨斯州奥斯汀的 DockerCon 上看到了 Thomas Graf 关于 eBPF 和 Cilium 项目的演讲。
 
-次年，Facebook（现在是 Meta）将[Katran](https://github.com/facebookincubator/katran)开源。Katran 是一个四层负载均衡器，满足了 Facebook 对[高度可扩展和快速解决方案](https://engineering.fb.com/2018/05/22/open-source/open-sourcing-katran-a-scalable-network-load-balancer/)的需求。自 2017 年以来，每一个访问[Facebook.com](http://facebook.com/)的数据包都通过了 eBPF/XDP[^4]。对我个人而言，这一年点燃了我对这种技术可能性的热情，在得克萨斯州奥斯汀的 DockerCon 上听到[Thomas Graf 关于 eBPF 和 Cilium 项目的演讲](https://www.slideshare.net/slideshow/dockercon-2017-cilium-network-and-application-security-with-bpf-and-xdp/75142762)后尤为如此。
 
 2018 年，eBPF 成为 Linux 内核中的一个独立子系统，由来自 Isovalent 的[Daniel Borkmann](http://borkmann.ch/)和来自 Meta 的[Alexei Starovoitov](https://www.linkedin.cn/incareer/in/alexey1)担任维护者（后来同样来自 Meta 的 [Andrii Nakryiko](https://nakryiko.com/) 加入了他们）。同年，引入了 BPF 类型格式（BTF），使得 eBPF 程序更具可移植性。我们将在第 5 章中探讨这一点。
 
@@ -73,13 +72,12 @@ BPF 代表“Berkeley Packet Filter”，它首次引入 Linux 是在 1997 年�
 
 eBPF 的应用范围已经远远超出了数据包过滤的范畴，因此这个缩写现在本质上已经失去了意义，它已经成为一个独立的术语。由于当前广泛使用的 Linux 内核都对 "extended" 部分提供支持，因此 eBPF 和 BPF 这两个术语通常可以互换使用。在内核源代码和 eBPF 编程中，常用的术语是 BPF。例如，在第 4 章中我们会看到，与 eBPF 进行交互的系统调用是`bpf()`，辅助函数以`bpf_`开头，不同类型的(e)BPF 程序以`BPF_PROG_TYPE`开头的名称进行标识。在内核社区之外，"eBPF"这个名称似乎已经被广泛使用，例如在社区网站 [ebpf.io](https://ebpf.io) 上和 [eBPF 基金会](http://ebpf.foundation)的名称中都使用了这个术语。
 
-eBPF 的应用范围远远超出了数据包过滤的范畴，以至于这个缩写如今基本上没有实际意义，已经成为一个独立的术语。而且，由于目前广泛使用的 Linux 内核都支持“扩展（extended）”部分，因此 _eBPF_ 和 _BPF_ 的术语基本上可以互换使用。在内核源代码和 eBPF 编程中，常用的术语是 _BPF_。例如，正如我们将在第 4 章中看到的，与 eBPF 交互的系统调用是 `bpf()`，辅助函数以 `bpf_` 开头，不同类型的 (e)BPF 程序以 `BPF_PROG_TYPE` 开头。在内核社区之外，“eBPF”这个名称似乎已经被固定下来，例如，在社区网站 [ebpf.io](https://ebpf.io/) 和 [eBPF 基金会](https://ebpf.foundation/)的名称中都使用了这个术语。
 
 ## Linux 内核
 
 要理解 eBPF，您需要对 Linux 中内核空间和用户空间之间的区别有深入的了解。我在我的报告“什么是 eBPF？（What Is eBPF?）”[^6]中谈到了这一点，并将其中的一些内容进行调整，形成接下来的几个段落。
 
-Linux 内核是应用程序与其运行的硬件之间的软件层。应用程序运行在一个称为*用户空间（user space）*的非特权层，无法直接访问硬件。相反，应用程序使用系统调用（syscall）接口请求内核代表其执行操作。硬件访问可能涉及读取和写入文件、发送或接收网络流量，甚至只是访问内存。内核还负责协调并发进程，使许多应用程序能够同时运行。如图 1-1 所示。
+Linux 内核是应用程序与其运行的硬件之间的软件层。应用程序运行在一个称为 *用户空间（user space）* 的非特权层，无法直接访问硬件。相反，应用程序使用系统调用（syscall）接口请求内核代表其执行操作。硬件访问可能涉及读取和写入文件、发送或接收网络流量，甚至只是访问内存。内核还负责协调并发进程，使许多应用程序能够同时运行。如图 1-1 所示。
 
 作为应用程序开发者，我们通常不直接使用系统调用接口，因为编程语言为我们提供了更高级的抽象和更易编程的标准库。因此，很多人对内核在我们的程序运行时所做的大量工作并不知情。如果您想了解内核被调用的频率，可以使用 `strace` 工具显示应用程序进行的所有系统调用。
 
@@ -121,7 +119,7 @@ _图 1-2. 向内核添加功能（插图由 Isovalent 的 Vadim Shchekoldin 绘�
 
 “安全运行”不仅意味着不会崩溃——用户还希望知道内核模块在安全性方面是可靠的。它是否包含攻击者可以利用的漏洞？我们是否信任模块的作者不会在其中加入恶意代码？由于内核是特权代码，它可以访问机器上的所有内容，包括所有数据，因此内核中的恶意代码将是一个严重的问题。这同样适用于内核模块。
 
-内核安全性是 Linux 发行版需要很长时间才能引入新版本的一个重要原因。如果其他人在各种情况下运行某个内核版本数月或数年，这应该已经排除了问题。发行版维护者可以相对自信地认为，他们提供给用户/客户的内核是经过*加固（hardened）*的——即安全运行的。
+内核安全性是 Linux 发行版需要很长时间才能引入新版本的一个重要原因。如果其他人在各种情况下运行某个内核版本数月或数年，这应该已经排除了问题。发行版维护者可以相对自信地认为，他们提供给用户/客户的内核是经过 *加固（hardened）* 的——即安全运行的。
 
 eBPF 提供了一种非常不同的安全方法：_eBPF 验证器（eBPF verifier）_，确保只有在安全运行的情况下才能加载 eBPF 程序——它不会导致机器崩溃或陷入死循环，也不会允许数据被泄露。我们将在第 6 章中更详细地讨论验证过程。
 
